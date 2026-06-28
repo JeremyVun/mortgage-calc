@@ -13,7 +13,8 @@ server {
     gzip_types      text/html text/css application/javascript;
     gzip_min_length 1024;
 
-    # Single static page — no SPA routing, just serve the file or 404.
+    # Single self-contained page (JS + CSS inlined by the build) — no SPA routing,
+    # no separate asset requests; just serve the file or 404.
     location / {
         try_files $uri $uri/ =404;
     }

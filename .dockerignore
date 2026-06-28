@@ -1,5 +1,7 @@
-# Keep the build context tiny — the image only needs index.html and the nginx
-# template (COPYed explicitly in the Dockerfile). Everything else is dev/ops cruft.
+# The image is built in two stages: a Node stage runs `vite build`, then nginx
+# serves the result. The build context therefore needs the SOURCE Vite consumes
+# (index.html, src/, package*.json, vite.config.js) — everything below is dev/ops
+# cruft or artifacts rebuilt inside the image.
 .git
 .gitignore
 .claude
@@ -8,6 +10,10 @@ Dockerfile
 docker-bake.hcl
 versions.hcl
 *.md
+
+# installed/built locally — regenerated inside the build stage
+node_modules
+dist
 
 # local env
 .env

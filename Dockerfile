@@ -1,11 +1,24 @@
 # syntax=docker/dockerfile:1
 #
-# mortgage-calc — a single static page (index.html) served by nginx. There is no
-# build step, no backend, and no state: the page is baked into the image. The listen
-# port is driven by MORTGAGE_CALC_PORT through nginx's official
+# mortgage-calc — a static page bundled with Vite and served by nginx. The source
+# (index.html + src/) is split into ES modules and a stylesheet; the build stage
+# runs `vite build` to produce minified, content-hashed assets under dist/, which
+# the runtime stage bakes into the nginx image. There is no backend and no state.
+# The listen port is driven by MORTGAGE_CALC_PORT through nginx's official
 # envsubst-on-templates entrypoint, so the compose stack and the container agree on
 # one port from one source (matches how the Go stacks take their port from env).
 
+# ---- build stage: bundle + minify the static assets with Vite ----
+FROM node:22-alpine AS build
+WORKDIR /app
+# Install deps first so this layer caches unless package*.json changes.
+COPY package.json package-lock.json ./
+RUN npm ci
+# Then the source, and build -> /app/dist.
+COPY . .
+RUN npm run build
+
+# ---- runtime stage: serve the built dist/ with nginx ----
 FROM nginx:1.27-alpine AS runtime
 
 # NGINX_ENVSUBST_FILTER restricts substitution to OUR vars (names containing
@@ -18,8 +31,8 @@ ENV NGINX_ENVSUBST_FILTER=MORTGAGE_CALC \
 # Rendered to /etc/nginx/conf.d/default.conf at container start by the stock
 # entrypoint (20-envsubst-on-templates.sh), replacing nginx's default server.
 COPY default.conf.template /etc/nginx/templates/default.conf.template
-# The page itself — immutable per build.
-COPY index.html /usr/share/nginx/html/index.html
+# The bundled, minified, content-hashed assets from the build stage.
+COPY --from=build /app/dist /usr/share/nginx/html
 
 # Documentation only (EXPOSE can't read the env var); the real port comes from
 # MORTGAGE_CALC_PORT and the compose `expose:`.
