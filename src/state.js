@@ -25,14 +25,9 @@ export const S = {
     ccLimit: 0,               // total credit-card / revolving limit
     otherDebt: 0,             // existing monthly debt repayments
   },
-  buyer: {                    // for LMI + First Home Guarantee eligibility
-    firstHome: true,
-    region: "NSW · cities",   // matches a REGIONS[].label in finance.js (label is the key now)
-  },
   locked: ["property", "loan"], // exactly 2, never {loan,repayment}
-  ui: {                       // view state (persisted): collapsible panels + schedule granularity
-    rates: true, figures: true, estimator: true, schemes: false,
-    schedMode: "period",      // "period" (per selected repayment frequency) | "yearly"
+  ui: {                       // view state (persisted): collapsible-panel open/closed
+    rates: true, figures: true, estimator: true,
   },
 };
 
@@ -46,4 +41,4 @@ export const FREQ_TITLE = { monthly: "Monthly", fortnightly: "Fortnightly", week
 export const STORAGE_KEY = "mortgage-calc/v2";
 // Only the INPUT state is persisted; derived fields are recomputed by solve() on restore.
 export const PERSIST_KEYS = ["rate", "termYears", "freq", "property", "deposit",
-  "depositSources", "loan", "repayment", "extra", "estimator", "buyer", "locked", "ui"];
+  "depositSources", "loan", "repayment", "extra", "estimator", "locked", "ui"];

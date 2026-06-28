@@ -1,16 +1,12 @@
 import { S, FREQ_LABEL, FREQ_TITLE } from "./state.js";
-import { solve, amortize, estimateBorrowingPower, estimateLMI, assessSchemes, REGIONS } from "./finance.js";
-import { money, pct, nf0, moneyInput, compact, compactK, esc, fmtDuration } from "./format.js";
-import { byId, NARROW, anim, setNum, segState, lockSVG } from "./dom.js";
+import { solve, amortize, estimateBorrowingPower, estimateLMI } from "./finance.js";
+import { money, pct, nf0, moneyInput, compact, esc, fmtDuration } from "./format.js";
+import { byId, anim, setNum, segState, lockSVG } from "./dom.js";
 import { saveStateSoon } from "./persist.js";
 
 /* ============================ Render ============================ */
 let activeEdit = null; // key currently being typed in
 let lastRepayMode = null; // tracks hero figure semantics to avoid cross-meaning tweens
-// Cached amortisation from the last full render. Scheme-only updates (which can't change
-// the loan or schedule) reuse these so they never recompute the amortisation or repaint
-// the chart/table — that keeps changing region / first-home / property-type snappy.
-let lastAm = null, lastAmBase = null;
 
 // events.js sets the field being typed in so render() won't reformat it mid-edit.
 export function setActiveEdit(v) { activeEdit = v; }
@@ -18,16 +14,17 @@ export function setActiveEdit(v) { activeEdit = v; }
 export function render() {
   const r = solve();
   const est = estimateBorrowingPower();
-  const sc = assessSchemes(r);
-  // Amortise ONCE (reflecting any extra repayment) and share across stats/schedule/chart;
-  // baseline (no extra) drives the "you'd save" comparisons. Collect per-period rows in the
-  // same walk when the schedule is in per-period mode, so renderSchedule needn't walk again.
-  const am = amortize(r.L, S.rate, S.termYears, r.p, S.extra, S.ui.schedMode === "period");
+  // Amortise ONCE (reflecting any extra repayment) and share across stats + chart;
+  // baseline (no extra) drives the "you'd save" comparisons.
+  const am = amortize(r.L, S.rate, S.termYears, r.p, S.extra);
   const amBase = S.extra > 0 ? amortize(r.L, S.rate, S.termYears, r.p, 0) : am;
-  lastAm = am; lastAmBase = amBase;
 
   /* rate control — reflect state unless you're mid-edit in the field */
   if (document.activeElement !== byId("rate")) byId("rate").value = S.rate.toFixed(2);
+
+  /* collapsed-section headline figures (glanceable when a section is folded) */
+  byId("rH").textContent = pct(S.rate, 2);
+  byId("fH").textContent = money(r.L);
 
   /* money fields — lock styling for all four; simple inputs for three (deposit is a sources card) */
   const vals = { property: r.P, loan: r.L, repayment: S.repayment };
@@ -86,33 +83,21 @@ export function render() {
 
   const badge = byId("lvrBadge");
   badge.textContent = "LVR " + pct(r.lvr, 1);
-  badge.className = "lvr-badge " + (r.lvr <= 0 ? "neutral" : r.lvr > 90 ? "bad" : r.lvr > 80 ? "warn" : "ok");
+  // complete class strings per branch (no fragment concat) so the build-time class minifier can see them
+  badge.className = r.lvr <= 0 ? "lvr-badge neutral" : r.lvr > 90 ? "lvr-badge bad" : r.lvr > 80 ? "lvr-badge warn" : "lvr-badge ok";
 
   /* mini sticky repayment bar (shown once the hero scrolls away) — repayment figure only */
   byId("mbLabel").textContent = FREQ_TITLE[S.freq] + " repay";
   byId("mbVal").textContent = money(r.rActual);
 
-  /* stat grid + extra repayments + schedule + chart + borrowing-power + schemes */
-  renderStats(r, am, amBase, sc);
+  /* stat grid + first-repayment split + extra repayments + chart + borrowing power */
+  renderStats(r, am, amBase);
+  renderFirstPay(r);
   renderExtra(r, am, amBase);
-  renderSchedule(r, am);
   renderChart(r, am);
   renderEstimator(r, est);
-  renderSchemes(r, sc);
 
   saveStateSoon(); // persist inputs (debounced) so they survive a refresh
-}
-
-/* Lightweight update for the First-Home-Guarantee controls (region / first-home). These
-   change scheme eligibility — and therefore whether LMI is waived — but never the loan,
-   schedule or chart, so we reuse the cached amortisation and skip the heavy repaints.
-   Keeps changing the location snappy (no full re-render). */
-export function renderSchemeArea() {
-  const r = solve();
-  const sc = assessSchemes(r);
-  renderSchemes(r, sc);
-  renderStats(r, lastAm, lastAmBase, sc); // refresh the LMI stat (waiver may have flipped)
-  saveStateSoon();
 }
 
 /* Lightweight update for income edits (salary / bonus / extra lines / HECS / applicant count).
@@ -126,15 +111,10 @@ export function renderIncomeArea() {
   saveStateSoon();
 }
 
-function renderStats(r, am, amBase, sc) {
+function renderStats(r, am, amBase) {
   const lmi = estimateLMI(r.L, r.P);
-  // req 12: when the First Home Guarantee applies, LMI is waived — show it struck
-  // through and reduced to $0 (the "on sale" pattern).
-  const waived = lmi.premium > 0 && sc && sc.fhbg && sc.fhbg.eligible;
   let lmiStat;
-  if (waived) {
-    lmiStat = { k: "Est. LMI", v: `<s class="strike">${money(lmi.premium)}</s> $0`, note: "waived · First Home Guarantee", tone: "ok" };
-  } else if (lmi.premium > 0) {
+  if (lmi.premium > 0) {
     lmiStat = { k: "Est. LMI", v: money(lmi.premium), note: "@ " + pct(lmi.lvr, 1) + " LVR · est.", tone: "warn" };
   } else {
     lmiStat = { k: "Est. LMI", v: "None", note: r.L > 0 ? "LVR ≤ 80%" : "no loan" };
@@ -149,9 +129,10 @@ function renderStats(r, am, amBase, sc) {
     { k: "Total interest", v: money(am.totalInterest), note: saved > 1 ? "saves " + money(saved) + " with extra" : "over " + S.termYears + " yrs" },
     { k: "Total repaid", v: money(r.L + am.totalInterest), note: "principal + interest" },
   ];
-  byId("statGrid").innerHTML = stats.map((s) =>
-    `<div class="stat${s.tone ? " " + s.tone : ""}"><div class="k">${s.k}</div><div class="v">${s.v}</div><div class="note">${s.note}</div></div>`
-  ).join("");
+  byId("statGrid").innerHTML = stats.map((s) => {
+    const t = s.tone ? " " + s.tone : ""; // tone (ok/warn/accent) is data-driven; kept out of class minification
+    return `<div class="stat${t}"><div class="k">${s.k}</div><div class="v">${s.v}</div><div class="note">${s.note}</div></div>`;
+  }).join("");
 }
 
 /* Extra-repayments panel (req 10): default $0; reflects how much faster you'd be debt-free
@@ -160,10 +141,7 @@ function renderExtra(r, am, amBase) {
   byId("extraFreq").textContent = "/" + FREQ_LABEL[S.freq];
   const out = byId("extraResult");
   if (!(r.L > 0)) { out.innerHTML = `No loan to pay down at these settings.`; return; }
-  if (!(S.extra > 0)) {
-    out.innerHTML = `Add an amount you could pay on top of each repayment to see how much sooner you'd be debt-free — and how much interest you'd save.`;
-    return;
-  }
+  if (!(S.extra > 0)) { out.innerHTML = ""; return; }
   const saved = amBase.totalInterest - am.totalInterest;
   const sooner = S.termYears - am.payoffYears;
   out.innerHTML =
@@ -172,37 +150,26 @@ function renderExtra(r, am, amBase) {
     (saved > 1 ? ` and saves <b class="good">${money(saved)}</b> in interest.` : `.`);
 }
 
-/* ---- repayment schedule (your actual rate) — toggles yearly vs per-period ---- */
-let lastSchedKey = null;
-function renderSchedule(r, am) {
-  const body = byId("schedBody"), colHead = byId("schedColHead");
-  const mode = S.ui.schedMode; // "period" | "yearly"
-  segState("schedSeg", "sched", mode);
-  byId("schedPeriodBtn").textContent = FREQ_TITLE[S.freq]; // toggle's period label tracks the chosen frequency
-  if (!(r.L > 0)) {
-    colHead.textContent = mode === "period" ? FREQ_TITLE[S.freq] : "Year";
-    body.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--ink-3)">—</td></tr>`;
-    lastSchedKey = null;
+/* First-repayment split — how much of payment #1 is interest (your cost of borrowing, to
+   weigh against rent) vs principal (equity you build). Early payments are mostly interest. */
+function renderFirstPay(r) {
+  const sub = byId("firstPaySub"), fp = byId("firstPay");
+  if (!(r.L > 0 && r.rActual > 0)) {
+    sub.textContent = "";
+    fp.innerHTML = `<div class="fp-note">No loan to split at these settings.</div>`;
     return;
   }
-  // The per-period view can be hundreds of rows — only rebuild when an input that changes it does.
-  const key = `${mode}|${Math.round(r.L)}|${S.rate}|${S.termYears}|${S.freq}|${Math.round(S.extra)}|${NARROW.matches ? 1 : 0}`;
-  if (key === lastSchedKey) return;
-  lastSchedKey = key;
-  const fmt = NARROW.matches ? compactK : money; // abbreviate on phones so the table never side-scrolls
-  if (mode === "period") {
-    colHead.textContent = FREQ_TITLE[S.freq];
-    // render() always walks the per-period rows into am.perRows when this mode is active.
-    const perRows = am.perRows;
-    body.innerHTML = perRows.map((row) =>
-      `<tr${row.k === 1 ? ' class="current"' : ''}><td>${row.k}</td><td>${fmt(row.interest)}</td><td>${fmt(row.principal)}</td><td>${fmt(row.balance)}</td></tr>`
-    ).join("");
-  } else {
-    colHead.textContent = "Year";
-    body.innerHTML = am.rows.map((row, idx) =>
-      `<tr${idx === 0 ? ' class="current"' : ''}><td>Year ${row.yr}</td><td>${fmt(row.interest)}</td><td>${fmt(row.principal)}</td><td>${fmt(row.balance)}</td></tr>`
-    ).join("");
-  }
+  const firstInt = r.L * (S.rate / 100 / r.p);
+  const firstPrin = Math.max(0, r.rActual - firstInt);
+  const intPct = Math.round((firstInt / r.rActual) * 100);
+  sub.textContent = `· ${money(r.rActual)} per ${FREQ_LABEL[S.freq]}`;
+  fp.innerHTML =
+    `<div class="split-bar"><div class="seg-p" style="width:${100 - intPct}%"></div><div class="seg-i" style="width:${intPct}%"></div></div>
+     <div class="split-legend">
+       <div class="li"><span class="sw p"></span> Principal <b>${money(firstPrin)}</b></div>
+       <div class="li"><span class="sw i"></span> Interest <b>${money(firstInt)}</b></div>
+       <div class="li" style="margin-left:auto"><b>${intPct}%</b> to interest</div>
+     </div>`;
 }
 
 function renderChart(r, am) {
@@ -365,20 +332,24 @@ export function renderEstimator(r, est) {
   byId("bpHemHint").textContent = est.hemBinds && hasIncome ? `HEM floor ${money(est.hem)}/mo applies` : "";
   const result = byId("bpResult");
 
-  // empty state — no income entered yet. Show "—", NOT "$0": asserting a $0 borrowing
-  // power before any income is entered reads as broken (req 3).
+  // empty state — no income entered yet. Show $0 as the starting figure and move the
+  // call-to-action into the section note; the result panel stays hidden until there's income.
   if (!hasIncome) {
-    byId("bpHead").textContent = "—";
+    byId("bpHead").textContent = "$0";
     byId("bpFlag").hidden = true;
     byId("bpFlag").className = "bp-sum-flag";
     byId("bpApply").disabled = true;
+    byId("bpNote").textContent = "Add your income below to estimate the maximum a bank is likely to lend.";
+    result.hidden = true;
     result.classList.remove("fail", "short");
-    result.innerHTML = `<div class="bp-r-empty">Add your income above and we'll estimate the maximum a lender is likely to advance — and flag if it falls short of the loan you need.</div>`;
+    result.innerHTML = "";
     return;
   }
 
-  // Always show the real computed power — on a shortfall it's the genuine serviceable
-  // figure, never a misleading $0 (req 3).
+  // income entered — show the descriptor note and the result panel with the real computed
+  // power (on a shortfall that's the genuine serviceable figure, never a misleading $0, req 3).
+  byId("bpNote").textContent = "How much a lender might lend, at the assessment rate below.";
+  result.hidden = false;
   byId("bpHead").textContent = money(est.power);
 
   // summary flag (visible even when collapsed) — must agree with the result panel below.
@@ -394,15 +365,10 @@ export function renderEstimator(r, est) {
   // the more severe so it owns the strongest treatment. They're mutually exclusive by definition.
   result.classList.toggle("fail", failed);
   result.classList.toggle("short", short);
-  const boundLabel = failed
-    ? "Your declared expenses + debts exceed your income at the assessment rate — lower them to see your capacity"
-    : est.bound === "dti"
-      ? "Capped at about 6× your income — a limit on high debt-to-income lending"
-      : "Limited by what your income can service at the assessment rate";
   let verdict = "";
   if (!noLoan && !failed) {
     verdict = short
-      ? `<div class="bp-r-verdict short">You are about shore by about <b>${money(shortBy)}</b>.</div>`
+      ? `<div class="bp-r-verdict short">You're short by about <b>${money(shortBy)}</b>.</div>`
       : `<div class="bp-r-verdict ok">Comfortably covers the <b>${money(needLoan)}</b> loan you're planning — <b>${money(-shortBy)}</b> of headroom.</div>`;
   }
   const detailRows = [
@@ -419,41 +385,7 @@ export function renderEstimator(r, est) {
       <span class="bp-r-cap">Estimated borrowing power</span>
       <span class="bp-r-val">${money(est.power)}</span>
     </div>
-    <div class="bp-r-bound">${boundLabel}</div>
     ${verdict}
     <div class="bp-r-rows">${detailRows.map(([k, v]) => `<div class="bp-r-row"><span>${k}</span><span>${v}</span></div>`).join("")}</div>`;
   byId("bpApply").disabled = !(est.power > 0);
-}
-
-/* First Home Guarantee eligibility card (the "5% deposit, no LMI" scheme). LMI itself
-   lives in the results stats — this scheme is what can waive it. Always called (r, sc). */
-function renderSchemes(r, sc) {
-  const b = S.buyer;
-
-  // populate the region <select> once, then reflect current selections
-  const sel = byId("regionSel");
-  if (!sel.options.length) sel.innerHTML = REGIONS.map((rg) => `<option value="${esc(rg.label)}">${esc(rg.label)}</option>`).join("");
-  sel.value = b.region;
-  if (!sel.value) { b.region = REGIONS[0].label; sel.value = b.region; } // recover from a stale saved region
-  segState("fhSeg", "fh", b.firstHome ? "yes" : "no");
-
-  const f = sc.fhbg;
-  let fbody;
-  if (f.eligible) {
-    fbody = `Buy with a <b>5% deposit (${money(f.minDeposit)})</b> and pay <b>no LMI</b>${f.lmiSaved > 0 ? ` — saving ~${money(f.lmiSaved)}` : ""}.`;
-  } else if (!f.firstHome) {
-    fbody = `For first-home buyers only.`;
-  } else {
-    fbody = `${money(r.P)} is above the <b>${money(f.cap)}</b> cap for ${esc(sc.region.label)}.`;
-  }
-  const fhbgCard = byId("fhbgCard");
-  fhbgCard.className = "scheme-card " + (f.eligible ? "ok" : "off");
-  fhbgCard.innerHTML =
-    `<div class="sc-head"><span class="sc-title">First Home Guarantee · 5% deposit</span><span class="sc-flag">${f.eligible ? "✓ eligible" : "—"}</span></div>
-     <div class="sc-body">${fbody}</div>`;
-
-  // summary chip (visible when collapsed)
-  const chip = byId("schemesChip");
-  if (f.eligible) { chip.textContent = "5% deposit · no LMI"; chip.className = "sec-chip good"; }
-  else { chip.textContent = "no scheme match"; chip.className = "sec-chip"; }
 }

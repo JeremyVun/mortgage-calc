@@ -149,46 +149,6 @@ export function estimateLMI(loan, propertyValue) {
   return { premium: (loan * rate) / 100, rate, lvr, capped: lvr > 95 };
 }
 
-/* ===================== First Home Guarantee (FY2025-26) =====================
-   The "5% deposit, no LMI" scheme — expanded 1 Oct 2025: income caps and place limits
-   removed, so only the per-region property price cap (fhbg) gates eligibility.
-   Source: housingaustralia.gov.au. */
-export const REGIONS = [
-  { label: "NSW · cities",   fhbg: 1500000 },
-  { label: "NSW · regional", fhbg: 800000 },
-  { label: "VIC · cities",   fhbg: 950000 },
-  { label: "VIC · regional", fhbg: 650000 },
-  { label: "QLD · cities",   fhbg: 1000000 },
-  { label: "QLD · regional", fhbg: 700000 },
-  { label: "WA · cities",    fhbg: 850000 },
-  { label: "WA · regional",  fhbg: 600000 },
-  { label: "SA · cities",    fhbg: 900000 },
-  { label: "SA · regional",  fhbg: 500000 },
-  { label: "TAS · cities",   fhbg: 700000 },
-  { label: "TAS · regional", fhbg: 550000 },
-  { label: "ACT",            fhbg: 1000000 },
-  { label: "NT",             fhbg: 600000 },
-];
-export const FHBG = { minDepositPct: 5 };
-
-/* Assess First Home Guarantee eligibility (5% deposit, no LMI) against the current
-   property + buyer. Since the 1 Oct 2025 expansion there is no income or place test, so
-   only the first-home flag and the regional price cap matter. `r` is a solve() snapshot. */
-export function assessSchemes(r) {
-  const b = S.buyer;
-  const region = REGIONS.find((x) => x.label === b.region) || REGIONS[0];
-  const P = r.P;
-  const cap = region.fhbg;
-  const underCap = P > 0 && P <= cap;
-  const fhbg = {
-    eligible: b.firstHome && underCap,
-    firstHome: b.firstHome, underCap, cap,
-    minDeposit: P * (FHBG.minDepositPct / 100),
-    lmiSaved: estimateLMI(P * 0.95, P).premium, // LMI you'd otherwise pay buying at 5% deposit
-  };
-  return { region, fhbg };
-}
-
 /* ============================ Math ============================ */
 export const ppy = () => FREQ_PPY[S.freq];
 
@@ -256,33 +216,23 @@ export function solve() {
   return { p, L, P, D, rActual, monthly, n, totalRepaid, totalInterest, lvr, depPct, availableFunds: D_input };
 }
 
-/* ---- amortisation schedule + chart ----
-   `extra` (paid on top of every scheduled payment) shortens the loan; `payoffYears`
-   reports when the balance actually hits zero so callers can show the time saved.
-   `withPeriods` also collects the per-period rows the loop already computes (so the
-   per-period schedule view reuses this single walk). */
-export function amortize(L, annualPct, years, p, extra = 0, withPeriods = false) {
+/* ---- amortisation for the loan-over-time chart ----
+   Walks the loan period-by-period to collect yearly balance points (`pts`), the total
+   interest paid, and when the balance actually hits zero (`payoffYears`). `extra` (paid
+   on top of every scheduled payment) shortens the loan. */
+export function amortize(L, annualPct, years, p, extra = 0) {
   const i = annualPct / 100 / p, n = years * p;
-  const M = pmt(L, annualPct, years, p);
-  const pay = M + Math.max(0, extra);
-  let bal = L, intCum = 0, yrInt = 0, yrPrin = 0;
+  const pay = pmt(L, annualPct, years, p) + Math.max(0, extra);
+  let bal = L, intCum = 0, last = 0;
   const pts = [{ yr: 0, bal: L }];
-  const rows = []; // one per year: {yr, interest, principal, balance}
-  const perRows = withPeriods ? [] : null; // one per period: {k, interest, principal, balance}
-  let last = 0;
   for (let k = 1; k <= n; k++) {
     last = k;
     const int = i === 0 ? 0 : bal * i;
     let prin = pay - int;
     if (prin > bal) prin = bal;
-    bal -= prin; intCum += int; yrInt += int; yrPrin += prin;
-    if (withPeriods) perRows.push({ k, interest: int, principal: prin, balance: Math.max(0, bal) });
-    if (k % p === 0 || bal <= 0 || k === n) {
-      pts.push({ yr: k / p, bal: Math.max(0, bal) });
-      rows.push({ yr: Math.ceil(k / p), interest: yrInt, principal: yrPrin, balance: Math.max(0, bal) });
-      yrInt = 0; yrPrin = 0;
-    }
+    bal -= prin; intCum += int;
+    if (k % p === 0 || bal <= 0 || k === n) pts.push({ yr: k / p, bal: Math.max(0, bal) });
     if (bal <= 0) break;
   }
-  return { pts, rows, perRows, totalInterest: intCum, M, pay, periods: last, payoffYears: last / p };
+  return { pts, totalInterest: intCum, payoffYears: last / p };
 }

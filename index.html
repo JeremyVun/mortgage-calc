@@ -15,7 +15,7 @@
 <div class="minibar" id="minibar" aria-hidden="true" tabindex="-1" title="Back to top">
   <div class="mb-inner">
     <span class="mb-dot"></span>
-    <div class="mb-cell mb-primary">
+    <div class="mb-cell">
       <span class="mb-label" id="mbLabel">Repayment</span>
       <span class="mb-val" id="mbVal">$0</span>
     </div>
@@ -27,7 +27,7 @@
   <header class="masthead">
     <div class="brand">
       <h1>Simple Serviceability Calculator</h1>
-      <p class="sub">Get a picture of what your loan might look like</p>
+      <p class="sub">What your loan might look like</p>
     </div>
     <button type="button" class="reset-btn" id="resetBtn" title="Clear saved inputs and start fresh">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
@@ -38,11 +38,14 @@
   <div class="grid">
 
     <!-- ============ CONTROLS ============ -->
-    <div class="panel controls">
+    <div class="panel">
 
       <details class="section sec" open data-ui="rates">
         <summary class="sec-sum">
-          <h2><span class="num">01</span> Rates &amp; terms</h2>
+          <span class="bp-sum-lead">
+            <h2><span class="num">01</span> Rates &amp; terms?</h2>
+            <span class="bp-sum-val"><b id="rH"></b></span>
+          </span>
           <span class="sec-chev" aria-hidden="true">▾</span>
         </summary>
         <div class="sec-body">
@@ -82,7 +85,10 @@
 
       <details class="section sec" open data-ui="figures">
         <summary class="sec-sum">
-          <h2><span class="num">02</span> The figures</h2>
+          <span class="bp-sum-lead">
+            <h2><span class="num">02</span> The loan?</h2>
+            <span class="bp-sum-val"><b id="fH"></b></span>
+          </span>
           <span class="sec-chev" aria-hidden="true">▾</span>
         </summary>
         <div class="sec-body">
@@ -104,7 +110,7 @@
         </div>
 
         <!-- Deposit (sum of funding sources) -->
-        <div class="field deposit-field" data-key="deposit">
+        <div class="field" data-key="deposit">
           <button type="button" class="lock" aria-pressed="true" aria-label="Deposit"></button>
           <div class="field-top">
             <label>Deposit</label>
@@ -143,23 +149,16 @@
       </details>
 
       <div class="section" style="padding:0">
-        <details class="bp" id="bpSection" data-ui="estimator">
-          <summary>
-            <span class="bp-sum-title"><span class="num">03</span> Will a bank lend this?</span>
-            <span class="bp-sum-right">
-              <span class="bp-sum-flag" id="bpFlag" hidden></span>
-              <span class="bp-sum-val"><span class="bp-sum-cap">est. max</span> <b id="bpHead">$0</b></span>
-              <span class="bp-chev" aria-hidden="true">▾</span>
+        <details class="sec" id="bpSection" data-ui="estimator">
+          <summary class="sec-sum">
+            <span class="bp-sum-lead">
+              <h2><span class="num">03</span> Will a bank lend this?</h2>
+              <span class="bp-sum-val"><b id="bpHead">$0</b><span class="bp-sum-flag" id="bpFlag" hidden></span></span>
             </span>
+            <span class="sec-chev" aria-hidden="true">▾</span>
           </summary>
           <div class="bp-body">
-            <p class="bp-note">How much a lender is might lend, at the assessment rate below.</p>
-
-            <!-- assessment rate = your rate + a fixed 3% APRA serviceability buffer (no control) -->
-            <div class="bp-assess">
-              <div class="mini-label">Assessment rate</div>
-              <div class="bp-assess-rate"><b id="bpAssessNote">9.00%</b><span>your rate + 3% buffer</span></div>
-            </div>
+            <p class="bp-note" id="bpNote">Add your income below and we'll estimate the maximum a lender is likely to advance — and flag if it falls short of the loan you need.</p>
 
             <div class="bp-field" style="margin-bottom:14px">
               <div class="mini-label">Applicants</div>
@@ -194,41 +193,14 @@
               </div>
             </div>
 
+            <!-- assessment rate = your rate + a fixed 3% APRA serviceability buffer (no control);
+                 an assumption behind the estimate, so it sits with the result, not above the inputs -->
+            <p class="bp-assess">Tested at <b id="bpAssessNote">9.00%</b> · your rate + 3% buffer</p>
             <div class="bp-result" id="bpResult"></div>
             <button type="button" class="bp-apply" id="bpApply">Set as my loan amount &rarr;</button>
           </div>
         </details>
       </div>
-
-      <details class="section sec" data-ui="schemes">
-        <summary class="sec-sum">
-          <h2><span class="num">04</span> First Home Guarantee</h2>
-          <span class="sec-right">
-            <span class="sec-chip" id="schemesChip"></span>
-            <span class="sec-chev" aria-hidden="true">▾</span>
-          </span>
-        </summary>
-        <div class="sec-body">
-          <p class="bp-note">The First Home Guarantee lets eligible first-home buyers in with a <b>5% deposit</b> and <b>no LMI</b> — as long as the price is under your region's cap.</p>
-
-          <div class="bp-field">
-            <div class="mini-label">First home buyer?</div>
-            <div class="seg" id="fhSeg" role="group" aria-label="First home buyer">
-              <button type="button" data-fh="yes" class="on" aria-pressed="true">Yes</button>
-              <button type="button" data-fh="no" aria-pressed="false">No</button>
-            </div>
-          </div>
-          <div class="bp-field" style="margin-bottom:15px">
-            <label class="mini-label" for="regionSel">Location — sets the price cap</label>
-            <select class="term" id="regionSel"></select>
-          </div>
-
-          <div class="scheme-card" id="fhbgCard"></div>
-
-          <p class="scheme-foot">Eligibility is indicative - Housing Australia and your lender make the final call</p>
-        </div>
-      </details>
-
 
     </div>
 
@@ -259,33 +231,17 @@
 
       <div class="stat-panel">
         <div class="section" style="border-bottom:none">
-          <div class="extra-head">
+          <h2>First repayment <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--ink-3)" id="firstPaySub"></span></h2>
+          <div class="first-pay" id="firstPay"></div>
+          <div class="extra-head" style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line-2)">
             <h2 style="margin:0">Extra repayments</h2>
-            <div class="extra-in">
-              <span class="extra-cur">$</span>
-              <input id="f-extra" inputmode="numeric" placeholder="0" aria-label="Extra repayment amount per period" />
-              <span class="extra-freq" id="extraFreq">/fortnight</span>
+            <div class="bp-in">
+              <span class="bp-cur">$</span>
+              <input id="f-extra" class="bp-num" inputmode="numeric" placeholder="0" aria-label="Extra repayment amount per period" />
+              <span class="bp-cur" id="extraFreq">/fortnight</span>
             </div>
           </div>
           <p class="extra-result" id="extraResult"></p>
-        </div>
-      </div>
-
-      <div class="stat-panel">
-        <div class="section" style="border-bottom:none">
-          <div class="sched-head">
-            <h2 style="margin:0">Repayment schedule</h2>
-            <div class="seg sched-seg" id="schedSeg" role="group" aria-label="Schedule granularity">
-              <button type="button" data-sched="period" class="on" aria-pressed="true" id="schedPeriodBtn">Fortnightly</button>
-              <button type="button" data-sched="yearly" aria-pressed="false">Yearly</button>
-            </div>
-          </div>
-          <div class="sched-scroll">
-            <table class="ledger" id="schedTable">
-              <thead><tr><th id="schedColHead">Year</th><th>Interest</th><th>Principal</th><th>Balance</th></tr></thead>
-              <tbody id="schedBody"></tbody>
-            </table>
-          </div>
         </div>
       </div>
 

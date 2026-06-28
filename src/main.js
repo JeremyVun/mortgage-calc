@@ -3,7 +3,7 @@ import { S } from "./state.js";
 import { render, renderSources, renderIncomes, syncBpSegs } from "./render.js";
 import { restoreState, applyPanels, resetState } from "./persist.js";
 import { bind } from "./events.js";
-import { byId, NARROW } from "./dom.js";
+import { byId } from "./dom.js";
 import { moneyInput } from "./format.js";
 import { trackPageview } from "./analytics.js";
 
@@ -34,8 +34,6 @@ function init() {
   } finally {
     document.body.classList.add("ready");
   }
-  // re-render when crossing the mobile breakpoint so the schedule re-formats (full ↔ compact)
-  if (NARROW.addEventListener) NARROW.addEventListener("change", render);
   // reveal the slim repayment bar once you've scrolled and the hero isn't meaningfully in view
   const heroEl = document.querySelector(".hero"), mb = byId("minibar");
   const updateMinibar = () => {

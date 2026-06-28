@@ -82,7 +82,7 @@
 
   .section { padding: 22px 24px; border-bottom: 1px solid var(--line-2); }
   .section:last-child { border-bottom: none; }
-  .section > h2, .sec-sum h2 {
+  .section > h2, .sec-sum h2, .extra-head h2 {
     font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase;
     color: var(--ink-3); font-weight: 700;
     display: flex; align-items: center; gap: 10px;
@@ -226,17 +226,6 @@
   .stat .note { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
   .stat.accent .v { color: var(--green); }
 
-  /* ---------- Sensitivity table ---------- */
-  .ledger { width: 100%; border-collapse: collapse; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
-  .ledger th {
-    text-align: right; font-weight: 600; color: var(--ink-3); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
-    padding: 7px 10px; border-bottom: 1.5px solid var(--ink); white-space: nowrap;
-  }
-  .ledger th:first-child { text-align: left; }
-  .ledger td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line-2); color: var(--ink); font-feature-settings:"tnum" 1; }
-  .ledger td:first-child { text-align: left; color: var(--ink-2); }
-  .ledger tr.current td { background: var(--green-tint); color: var(--green); font-weight: 600; }
-  .ledger tr.current td:first-child { color: var(--green); }
   /* ---------- Charts ---------- */
   .chart-wrap { margin-top: 6px; }
   .chart-wrap svg { width: 100%; height: auto; display: block; overflow: visible; }
@@ -250,8 +239,9 @@
   .split-legend .sw.i { background: repeating-linear-gradient(45deg, var(--clay), var(--clay) 4px, #b8542f 4px, #b8542f 8px); }
   .split-legend b { font-family: "IBM Plex Mono", monospace; }
 
-  footer.foot { margin-top: 40px; text-align: center; font-size: 11.5px; color: var(--ink-3); line-height: 1.6; }
-  footer.foot a { color: var(--green-2); text-decoration: none; }
+  /* first-repayment split (interest vs principal of payment #1 — the rent-vs-equity lens) */
+  .first-pay { margin-top: 4px; }
+  .fp-note { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; margin-top: 9px; }
 
   @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
   /* This app is fully JS-driven: the static HTML is just empty placeholders ($0,
@@ -268,7 +258,6 @@
   }
 
   /* ---------- Responsive refinements ---------- */
-  .ledger td { white-space: nowrap; }
   @media (max-width: 520px) {
     .wrap { padding-left: 16px; padding-right: 16px; }
     .row2 { grid-template-columns: 1fr; }
@@ -279,12 +268,9 @@
   }
 
   /* ---------- Assessment rate (bank-lend section) — fixed +3% buffer, no control ---------- */
-  .bp-assess { background: var(--green-tint); border:1px solid var(--green-soft); border-radius: var(--r);
-    padding: 11px 13px; margin-bottom: 16px; }
-  .bp-assess .mini-label { margin-bottom:3px; }
-  .bp-assess-rate { display:flex; align-items:baseline; gap:7px; }
-  .bp-assess-rate b { color: var(--green); font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:21px; letter-spacing:-.01em; }
-  .bp-assess-rate span { font-size:11.5px; color: var(--ink-3); }
+  /* assumption behind the estimate — a slim line above the result, not a box above the inputs */
+  .bp-assess { font-size:11.5px; color:var(--ink-3); margin:14px 0 12px; padding-top:14px; border-top:1px solid var(--line-2); }
+  .bp-assess b { color:var(--green); font-family:"IBM Plex Mono",monospace; font-weight:600; }
 
   /* ---------- Deposit funding sources ---------- */
   .dep-cap { font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); font-weight:700; margin-top:2px; }
@@ -332,32 +318,15 @@
   }
   @media (prefers-reduced-motion: reduce) { .minibar { transition: none; } }
 
-  /* ---------- Repayment schedule ---------- */
-  .sched-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
-  .sched-seg { flex:0 0 auto; padding:2px; }
-  .sched-seg button { padding:5px 11px; font-size:11.5px; }
-  .sched-scroll { max-height: 332px; overflow: auto; border:1px solid var(--line-2); border-radius: var(--r); }
-  .sched-scroll .ledger td, .sched-scroll .ledger th { padding-left: 11px; padding-right: 11px; }
-  .sched-scroll thead th { position: sticky; top: 0; background: var(--paper-2); z-index: 1; box-shadow: 0 1.5px 0 var(--ink); }
-  @media (max-width: 520px) {
-    .sched-scroll .ledger { font-size: 11px; }
-    .sched-scroll .ledger td, .sched-scroll .ledger th { padding-left: 7px; padding-right: 7px; }
-    .sched-scroll .ledger th { font-size: 9.5px; letter-spacing: .04em; }
-  }
-
   /* ---------- Borrowing-power estimator ---------- */
-  details.bp > summary { list-style:none; cursor:pointer; padding:20px 24px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
-  details.bp > summary::-webkit-details-marker { display:none; }
-  details.bp > summary:hover .bp-sum-val b { color: var(--green-2); }
-  details.bp > summary:hover .bp-chev { color: var(--green-2); }
-  .bp-sum-right { display:flex; align-items:center; gap:11px; }
-  .bp-chev { transition: transform .2s; color: var(--ink-3); font-size:12px; line-height:1; }
-  details.bp[open] > summary .bp-chev { transform: rotate(180deg); }
-  .bp-sum-title { font-size:11.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-3); font-weight:700; display:flex; align-items:center; gap:10px; }
-  .bp-sum-title .num { font-family:"IBM Plex Mono",monospace; color:var(--green-2); border:1px solid var(--green-soft); background:var(--green-tint); border-radius:5px; padding:1px 6px; font-size:11px; letter-spacing:0; }
-  .bp-sum-val { display:flex; align-items:baseline; gap:7px; }
-  .bp-sum-cap { font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); font-weight:700; }
-  .bp-sum-val b { font-family:"IBM Plex Mono",monospace; font-size:19px; font-weight:600; color:var(--green); letter-spacing:-.01em; }
+  /* Summary reuses the shared .sec-sum / .sec-chev section header; only the est-max
+     figure + verdict flag are bespoke, and they wrap to their own row under the title
+     (the controls column is too narrow to share one row). */
+  /* title + est-max figure share one line (lead group), chevron stays right; the figure
+     wraps under the title only when the column is too narrow to hold both. */
+  .bp-sum-lead { display:flex; flex:1; min-width:0; flex-wrap:wrap; align-items:baseline; gap:3px 10px; }
+  .bp-sum-val { display:inline-flex; align-items:center; gap:8px; }
+  .bp-sum-val b { font-family:"IBM Plex Mono",monospace; font-size:18px; font-weight:600; color:var(--green); letter-spacing:-.01em; }
   .bp-body { padding:4px 24px 22px; }
   .bp-note { font-size:12px; color:var(--ink-2); line-height:1.5; margin:0 0 16px; }
   .bp-note b { color:var(--green); font-weight:600; }
@@ -377,7 +346,6 @@
   .bp-r-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
   .bp-r-cap { font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; opacity:.72; font-weight:600; }
   .bp-r-val { font-family:"IBM Plex Mono",monospace; font-size:27px; font-weight:600; letter-spacing:-.015em; }
-  .bp-r-bound { font-size:11.5px; opacity:.85; margin-top:3px; }
   .bp-r-rows { margin-top:11px; border-top:1px solid rgba(244,240,229,.16); padding-top:10px; display:flex; flex-direction:column; gap:4px; }
   .bp-r-row { display:flex; justify-content:space-between; font-size:12px; font-family:"IBM Plex Mono",monospace; }
   .bp-r-row span:first-child { opacity:.8; font-family:"Hanken Grotesk",sans-serif; }
@@ -399,36 +367,13 @@
   .bp-result.short .bp-r-val, .bp-result.fail .bp-r-val { color:#FFF; }
   .bp-r-verdict { font-size:12px; line-height:1.45; margin-top:10px; padding:8px 11px; border-radius:6px; background:rgba(255,255,255,.11); }
   .bp-r-verdict b { font-weight:700; }
-  .bp-r-empty { font-size:12.5px; line-height:1.5; opacity:.92; }
 
   /* income lines — per-applicant, deposit-card style */
-  .inc-cap { font-size:11.5px; color:var(--ink-3); line-height:1.45; margin:2px 0 10px; }
   .bp-applicant .inc-list { display:flex; flex-direction:column; gap:8px; margin-bottom:9px; }
   /* extra-income rows reuse the shared .src-* component (see Deposit funding sources) */
   .inc-add { border:1px dashed var(--line); border-radius:5px; background:transparent;
     color:var(--green-2); font:inherit; font-size:12px; font-weight:600; cursor:pointer; transition:.14s; }
   .inc-add:hover { border-color:var(--green-2); background:var(--green-tint); color:var(--green); }
-
-  /* section summary chip (collapsed-state headline, e.g. schemes) */
-  .sec-right { display:flex; align-items:center; gap:10px; }
-  .sec-chip { font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; letter-spacing:-.01em;
-    padding:3px 9px; border-radius:999px; background:var(--paper-3); color:var(--ink-2); white-space:nowrap; }
-  .sec-chip.good { background:var(--green-tint); color:var(--green); }
-  .sec-chip:empty { display:none; }
-
-  /* LMI + government-scheme cards */
-  .scheme-card { border:1px solid var(--line); border-radius:var(--r); padding:12px 14px; margin-bottom:10px; background:var(--paper-2); }
-  .scheme-card.ok { border-color:var(--green-soft); background:var(--green-tint); }
-  .scheme-card.off { background:var(--paper); border-style:dashed; }
-  .sc-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:5px; }
-  .sc-title { font-size:12.5px; font-weight:700; color:var(--ink); }
-  .scheme-card.ok .sc-title { color:var(--green); }
-  .sc-flag { font-size:10.5px; font-weight:700; letter-spacing:.02em; text-transform:uppercase; color:var(--ink-3); white-space:nowrap; }
-  .scheme-card.ok .sc-flag { color:var(--green-2); }
-  .sc-body { font-size:12px; color:var(--ink-2); line-height:1.5; }
-  .sc-body b { color:var(--ink); font-weight:600; }
-  .scheme-card.ok .sc-body b { color:var(--green); }
-  .scheme-foot { font-size:11px; color:var(--ink-3); line-height:1.5; margin:12px 0 0; }
 
   /* ========================= UI cleanup additions ========================= */
 
@@ -444,19 +389,11 @@
 
   /* extra-repayments panel (above the schedule) */
   .extra-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
-  .extra-in { display:flex; align-items:center; gap:3px; border:1px solid var(--line); border-radius:7px; padding:7px 11px; background:var(--paper-2); }
-  .extra-in:focus-within { border-color:var(--green-2); box-shadow:0 0 0 3px var(--green-tint); }
-  .extra-cur { color:var(--ink-3); font-family:"IBM Plex Mono",monospace; font-size:15px; }
-  .extra-in input { width:96px; border:none; background:transparent; outline:none; text-align:right;
-    font-family:"IBM Plex Mono",monospace; font-size:18px; font-weight:600; color:var(--green); font-feature-settings:"tnum" 1; }
-  .extra-freq { color:var(--ink-3); font-size:12px; font-family:"IBM Plex Mono",monospace; }
+  /* input box reuses the .bp-in / .bp-cur / .bp-num pattern; only the green emphasis is bespoke */
+  .extra-head .bp-num { width:96px; font-size:18px; color:var(--green); }
   .extra-result { font-size:12.5px; color:var(--ink-2); line-height:1.5; margin:0; }
   .extra-result b { color:var(--ink); font-weight:600; }
   .extra-result .good { color:var(--green-2); }
-
-  /* LMI stat "on sale" treatment when waived by the First Home Guarantee (req 12) */
-  .stat.ok .v { color: var(--green); }
-  .stat .v s.strike { color: var(--ink-3); text-decoration: line-through; font-weight: 400; font-size: .8em; margin-right: 3px; }
 
   /* center the floating mini-bar's content on the page column (req 7) */
   .mb-inner { display:flex; align-items:center; gap:18px; width:100%; max-width:var(--wrap-max); margin:0 auto; padding:0 var(--wrap-pad); }

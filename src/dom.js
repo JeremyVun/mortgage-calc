@@ -1,7 +1,6 @@
 /* ============================ DOM helpers ============================ */
 export function byId(id) { return document.getElementById(id); }
 
-export const NARROW = window.matchMedia ? window.matchMedia("(max-width: 520px)") : { matches: false, addEventListener() {} };
 export const REDUCE_MOTION = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
 
 /* ============================ Number animation ============================ */

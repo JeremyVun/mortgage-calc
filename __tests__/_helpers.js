@@ -11,7 +11,7 @@ import { S, freshIncome } from "../src/state.js";
 
 /* Restore the global state singleton to a clean, deterministic baseline. Covers
    every field the estimator functions read (S.rate/termYears/freq plus the
-   whole S.estimator and S.buyer blocks). Call from beforeEach(). */
+   whole S.estimator block). Call from beforeEach(). */
 export function resetState() {
   S.rate = 6.0;
   S.termYears = 30;
@@ -24,8 +24,6 @@ export function resetState() {
   S.estimator.expenses = 0;
   S.estimator.ccLimit = 0;
   S.estimator.otherDebt = 0;
-  S.buyer.firstHome = true;
-  S.buyer.region = "NSW · cities";
 }
 
 /* Float comparison with a RELATIVE tolerance (scales with magnitude, so it works

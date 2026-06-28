@@ -4,18 +4,10 @@ export const nf2 = new Intl.NumberFormat("en-AU", { minimumFractionDigits: 2, ma
 export function money(x) { if (!isFinite(x)) return "—"; const r = Math.round(x); return (r < 0 ? "-$" : "$") + nf0.format(Math.abs(r)); }
 export function pct(x, d = 1) { if (!isFinite(x)) return "—"; return x.toFixed(d) + "%"; }
 // Money for an editable input: blank when zero/empty, else grouped ("1,200"). Centralizes the
-// "blank when zero" rule the salary/deposit/expense/buffer inputs all share. moneyRaw is the
+// "blank when zero" rule the salary/deposit/expense inputs all share. moneyRaw is the
 // separator-free variant used while a field is focused so caret math stays simple.
 export const moneyInput = (v) => (v ? nf0.format(Math.round(v)) : "");
 export const moneyRaw = (v) => (v ? String(Math.round(v)) : "");
-// Abbreviated money for the dense per-period schedule on narrow screens ($47.7k / $1.20M).
-export function compactK(x) {
-  if (!isFinite(x)) return "—";
-  const a = Math.abs(x), s = x < 0 ? "-$" : "$";
-  if (a >= 1e6) return s + (a / 1e6).toFixed(2) + "M";
-  if (a >= 1e3) return s + (a / 1e3).toFixed(1) + "k";
-  return money(x);
-}
 // Compact axis labels for the chart ($1.2M / $250k / $900).
 export function compact(x) {
   if (x >= 1e6) return "$" + (x / 1e6).toFixed(x >= 1e7 ? 0 : 1) + "M";

@@ -7,9 +7,16 @@ whole app is one self-contained `dist/index.html` (JS + CSS inlined), served by 
 
 - Source is split for editing: `src/*.js` ES modules + `src/styles.css`, entry `index.html`.
 - `npm run build` inlines everything into `dist/index.html` via `vite-plugin-singlefile`,
-  plus two custom plugins in `vite.config.js`:
+  plus custom plugins in `vite.config.js`:
   - `classicBlockingScript` — inlined JS → classic blocking `<script>` at end of
     `<body>`, so first paint shows populated UI (no deferred-module flash).
+  - `minClasses` (`vite-plugin-min-classes.mjs`) — renames every CSS class to a short
+    token (.a/.b…) consistently across the inlined `<style>`, HTML and JS, in
+    **structural positions only** (`class="…"`, `el.className="…"`, `classList.x("…")`,
+    selector strings, CSS selectors). Free text is never touched. A build-time leak
+    guard fails the build if a renamed class's original name survives — so write classes
+    as COMPLETE string literals (`cond?"a b":"a c"`, not `"a "+(cond?"b":"c")`), and use
+    the `SKIP` set for data-driven `${…}` class fragments. ~−0.45 KB brotli.
   - `precompress` — emits `dist/index.html.br` (brotli q11) + `.gz` (gzip -9) alongside.
 
 ## Commands

@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import { viteSingleFile } from "vite-plugin-singlefile";
+import { minClasses } from "./vite-plugin-min-classes.mjs";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { gzipSync, brotliCompressSync, constants as zlibConstants } from "node:zlib";
@@ -90,7 +91,7 @@ function stripHtmlComments() {
 //   npm run build    -> dist/index.html (one inlined file; what nginx ships)
 //   npm run preview  serve the built file to sanity-check it
 export default defineConfig({
-  plugins: [stripHtmlComments(), viteSingleFile(), classicBlockingScript(), precompress()],
+  plugins: [stripHtmlComments(), viteSingleFile(), classicBlockingScript(), minClasses(), precompress()],
   build: {
     outDir: "dist",
     emptyOutDir: true,

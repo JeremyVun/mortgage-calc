@@ -65,19 +65,13 @@ export function restoreState() {
     if (isNum(d.ccLimit)) e.ccLimit = d.ccLimit;
     if (isNum(d.otherDebt)) e.otherDebt = d.otherDebt;
   }
-  if (data.buyer && typeof data.buyer === "object") {
-    const d = data.buyer, bu = S.buyer;
-    if (typeof d.firstHome === "boolean") bu.firstHome = d.firstHome;
-    if (typeof d.region === "string" && d.region) bu.region = d.region; // validated against REGIONS at render
-  }
   if (Array.isArray(data.locked)) {
     const lk = [...new Set(data.locked)].filter((k) => ["property", "deposit", "loan", "repayment"].includes(k));
     const forbidden = lk.includes("loan") && lk.includes("repayment");
     if (lk.length === 2 && !forbidden) S.locked = lk;
   }
   if (data.ui && typeof data.ui === "object") {
-    for (const k of ["rates", "figures", "estimator", "schemes"]) if (typeof data.ui[k] === "boolean") S.ui[k] = data.ui[k];
-    if (["yearly", "period"].includes(data.ui.schedMode)) S.ui.schedMode = data.ui.schedMode;
+    for (const k of ["rates", "figures", "estimator"]) if (typeof data.ui[k] === "boolean") S.ui[k] = data.ui[k];
   }
 }
 export function resetState() {

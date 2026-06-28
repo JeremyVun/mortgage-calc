@@ -2,7 +2,7 @@ import { S } from "./state.js";
 import { estimateBorrowingPower } from "./finance.js";
 import { parseNum, moneyInput, moneyRaw } from "./format.js";
 import { byId, REDUCE_MOTION } from "./dom.js";
-import { render, renderSources, renderIncomes, syncBpSegs, renderEstimator, renderIncomeArea, renderSchemeArea, setActiveEdit } from "./render.js";
+import { render, renderSources, renderIncomes, syncBpSegs, renderEstimator, renderIncomeArea, setActiveEdit } from "./render.js";
 import { saveStateSoon } from "./persist.js";
 
 /* ============================ Lock logic ============================ */
@@ -112,12 +112,6 @@ export function bind() {
     d.addEventListener("toggle", () => { if (d.dataset.ui in S.ui) { S.ui[d.dataset.ui] = d.open; saveStateSoon(); } });
   });
 
-  // repayment-schedule granularity toggle (yearly vs per selected frequency)
-  byId("schedSeg").addEventListener("click", (e) => {
-    const b = e.target.closest("button"); if (!b) return;
-    S.ui.schedMode = b.dataset.sched; render();
-  });
-
   /* ---------- borrowing-power estimator ---------- */
   byId("bpApplicants").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
@@ -178,13 +172,4 @@ export function bind() {
     render();
     window.scrollTo({ top: 0, behavior: REDUCE_MOTION.matches ? "auto" : "smooth" });
   });
-
-  /* ---------- Government schemes — these only affect scheme eligibility + LMI waiver,
-       so use the lightweight renderSchemeArea() (no chart/schedule repaint). Keeps
-       changing the location snappy. ---------- */
-  byId("fhSeg").addEventListener("click", (e) => {
-    const b = e.target.closest("button"); if (!b) return;
-    S.buyer.firstHome = b.dataset.fh === "yes"; renderSchemeArea();
-  });
-  byId("regionSel").addEventListener("change", (e) => { S.buyer.region = e.target.value; renderSchemeArea(); });
 }
