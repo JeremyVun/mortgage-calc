@@ -7,7 +7,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "size": "node scripts/size-budget.mjs",
+    "profile:js": "node scripts/js-profile.mjs",
+    "test": "node scripts/size-budget.mjs"
   },
   "devDependencies": {
     "vite": "^7.1.0",

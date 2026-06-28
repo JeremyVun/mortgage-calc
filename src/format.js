@@ -30,3 +30,13 @@ export function parseNum(str) {
 }
 
 export function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+// Human duration from a number of years ("24 yr 6 mo", "5 yr", "8 mo").
+export function fmtDuration(years) {
+  if (!isFinite(years) || years <= 0) return "0 mo";
+  const totalMonths = Math.round(years * 12);
+  const y = Math.floor(totalMonths / 12), m = totalMonths % 12;
+  if (y && m) return `${y} yr ${m} mo`;
+  if (y) return `${y} yr`;
+  return `${m} mo`;
+}

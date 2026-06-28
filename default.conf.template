@@ -9,9 +9,14 @@ server {
     root   /usr/share/nginx/html;
     index  index.html;
 
-    gzip            on;
-    gzip_types      text/html text/css application/javascript;
-    gzip_min_length 1024;
+    # The build emits index.html alongside precompressed index.html.br (brotli q11)
+    # and index.html.gz (gzip -9). Serve those directly: best ratio, zero
+    # request-time CPU. brotli_static comes from the ngx_brotli module compiled
+    # into this image (see Dockerfile + load_module in nginx.conf); gzip_static is
+    # in stock nginx. A client sending `Accept-Encoding: br` gets the .br file;
+    # gzip clients get .gz; anything else gets the plain file.
+    brotli_static   on;
+    gzip_static     on;
 
     # Single self-contained page (JS + CSS inlined by the build) — no SPA routing,
     # no separate asset requests; just serve the file or 404.

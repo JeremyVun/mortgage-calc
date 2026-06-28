@@ -8,22 +8,35 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <script type="module" src="/src/main.js"></script>
+<noscript><style>.brand,.reset-btn,.panel{opacity:1!important}</style></noscript>
 </head>
 <body>
 
 <div class="minibar" id="minibar" aria-hidden="true" tabindex="-1" title="Back to top">
-  <span class="mb-dot"></span>
-  <span class="mb-label" id="mbLabel">Repayment</span>
-  <span class="mb-val" id="mbVal">$0</span>
-  <span class="mb-meta" id="mbMeta"></span>
+  <div class="mb-inner">
+    <span class="mb-dot"></span>
+    <div class="mb-cell mb-primary">
+      <span class="mb-label" id="mbLabel">Repayment</span>
+      <span class="mb-val" id="mbVal">$0</span>
+    </div>
+    <div class="mb-cell mb-extra">
+      <span class="mb-label" id="mbAK">Property</span>
+      <span class="mb-fig" id="mbAV">$0</span>
+    </div>
+    <div class="mb-cell mb-extra">
+      <span class="mb-label" id="mbBK">Loan</span>
+      <span class="mb-fig" id="mbBV">$0</span>
+    </div>
+    <span class="mb-top" id="mbTop" aria-hidden="true">↑ top</span>
+  </div>
 </div>
 
 <div class="wrap">
 
   <header class="masthead">
     <div class="brand">
-      <h1>What can you <em>actually</em> afford?</h1>
-      <p class="sub">Lock the two figures you know — the rest solves live.</p>
+      <h1>Simple Serviceability Calculator</h1>
+      <p class="sub">Get a picture of what your loan might look like</p>
     </div>
     <button type="button" class="reset-btn" id="resetBtn" title="Clear saved inputs and start fresh">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
@@ -43,17 +56,14 @@
         </summary>
         <div class="sec-body">
 
-        <div class="ctl" style="margin-bottom:12px">
-          <div class="ctl-head"><label for="rate">Interest rate</label><span class="val" id="rateVal">6.00%</span></div>
-          <input type="range" id="rate" min="0" max="12" step="0.05" value="6" />
-        </div>
-
-        <div class="assess-line">
-          <span class="al-main">Banks assess you at <b id="assessInline">9.00%</b></span>
-          <label class="buf-edit" for="buffer-num">+<input type="number" id="buffer-num" value="3" min="0" max="5" step="0.25" aria-label="Servicing buffer percent" />% buffer</label>
-        </div>
-
-        <div class="row2" style="margin-top:14px">
+        <div class="row2">
+          <div>
+            <div class="mini-label">Interest rate</div>
+            <label class="rate-box">
+              <input class="rate-in" id="rate" inputmode="decimal" aria-label="Interest rate percent" value="6.00" />
+              <span class="rate-suf">%</span>
+            </label>
+          </div>
           <div>
             <div class="mini-label">Loan term</div>
             <select class="term" id="term">
@@ -66,13 +76,14 @@
               <option value="10">10 years</option>
             </select>
           </div>
-          <div>
-            <div class="mini-label" id="freqLabel">Repayment frequency</div>
-            <div class="seg" id="freqSeg" role="group" aria-labelledby="freqLabel">
-              <button type="button" data-freq="monthly" aria-pressed="false">Monthly</button>
-              <button type="button" data-freq="fortnightly" class="on" aria-pressed="true">Fortnightly</button>
-              <button type="button" data-freq="weekly" aria-pressed="false">Weekly</button>
-            </div>
+        </div>
+
+        <div style="margin-top:16px">
+          <div class="mini-label" id="freqLabel">Repayment frequency</div>
+          <div class="seg" id="freqSeg" role="group" aria-labelledby="freqLabel">
+            <button type="button" data-freq="monthly" aria-pressed="false">Monthly</button>
+            <button type="button" data-freq="fortnightly" class="on" aria-pressed="true">Fortnightly</button>
+            <button type="button" data-freq="weekly" aria-pressed="false">Weekly</button>
           </div>
         </div>
         </div>
@@ -135,13 +146,6 @@
           </div>
           <div class="input-wrap"><span class="prefix">$</span><input class="money" id="f-repayment" inputmode="numeric" /></div>
           <div class="sub" id="sub-repayment"></div>
-          <div class="basis-toggle">
-            <span class="basis-cap" id="basisCap">If locked, treat as</span>
-            <div class="seg" id="basisSeg" role="group" aria-labelledby="basisCap">
-              <button type="button" data-basis="assessed" class="on" aria-pressed="true">Assessed @ buffer</button>
-              <button type="button" data-basis="actual" aria-pressed="false">Actual @ rate</button>
-            </div>
-          </div>
         </div>
 
         </div>
@@ -152,63 +156,61 @@
           <summary>
             <span class="bp-sum-title"><span class="num">03</span> Will a bank lend this?</span>
             <span class="bp-sum-right">
-              <span class="bp-sum-val"><span class="bp-sum-cap">est.</span> <b id="bpHead">$0</b></span>
+              <span class="bp-sum-flag" id="bpFlag" hidden></span>
+              <span class="bp-sum-val"><span class="bp-sum-cap">est. max</span> <b id="bpHead">$0</b></span>
               <span class="bp-chev" aria-hidden="true">▾</span>
             </span>
           </summary>
           <div class="bp-body">
-            <p class="bp-note">A serviceability estimate from your income &amp; expenses — the way a lender stress-tests you at <b id="bpAssessNote">9.00%</b>. An approximation for planning, not a bank's exact number.</p>
+            <p class="bp-note">How much a lender is likely to advance — stress-tested at the assessment rate below. A planning estimate, not a bank's exact number.</p>
 
-            <div class="bp-grid">
-              <div class="bp-field">
-                <div class="mini-label">Applicants</div>
-                <div class="seg" id="bpApplicants" role="group" aria-label="Number of applicants">
-                  <button type="button" data-app="1" class="on" aria-pressed="true">Just me</button>
-                  <button type="button" data-app="2" aria-pressed="false">Two of us</button>
-                </div>
+            <!-- assessment rate (= your rate + servicing buffer; the buffer lives here, not in your real repayments) -->
+            <div class="bp-assess">
+              <div class="bp-assess-main">
+                <div class="mini-label">Assessment rate</div>
+                <div class="bp-assess-rate"><b id="bpAssessNote">9.00%</b></div>
               </div>
-              <div class="bp-field">
-                <div class="mini-label">Household</div>
-                <div class="seg" id="bpHousehold" role="group" aria-label="Household type">
-                  <button type="button" data-hh="single" class="on" aria-pressed="true">Single</button>
-                  <button type="button" data-hh="couple" aria-pressed="false">Couple</button>
+              <div class="bp-assess-buf">
+                <div class="mini-label">Servicing buffer</div>
+                <div class="buf-stepper" role="group" aria-label="Servicing buffer">
+                  <button type="button" class="buf-step" id="bufMinus" aria-label="Decrease buffer">&minus;</button>
+                  <span class="buf-val"><span class="buf-plus">+</span><input id="buffer-num" inputmode="decimal" aria-label="Servicing buffer percent" value="3.00" /><span class="buf-pct">%</span></span>
+                  <button type="button" class="buf-step" id="bufPlus" aria-label="Increase buffer">+</button>
                 </div>
               </div>
             </div>
 
+            <div class="bp-field" style="margin-bottom:14px">
+              <div class="mini-label">Applicants</div>
+              <div class="seg" id="bpApplicants" role="group" aria-label="Number of applicants">
+                <button type="button" data-app="1" class="on" aria-pressed="true">Just me</button>
+                <button type="button" data-app="2" aria-pressed="false">Two of us</button>
+              </div>
+            </div>
+
+            <div class="inc-cap">Gross income per year — what a lender counts toward serviceability.</div>
             <div id="bpIncomes"></div>
 
             <div class="bp-grid">
               <div class="bp-field">
                 <label class="mini-label" for="bp-expenses">Living expenses /mo</label>
-                <div class="bp-in"><span class="bp-cur">$</span><input id="bp-expenses" class="bp-num" inputmode="numeric" value="0" /></div>
+                <div class="bp-in"><span class="bp-cur">$</span><input id="bp-expenses" class="bp-num" inputmode="numeric" placeholder="0" /></div>
                 <div class="bp-hint" id="bpHemHint"></div>
               </div>
               <div class="bp-field">
-                <label class="mini-label" for="bp-deps">Dependent kids</label>
-                <div class="bp-in"><input id="bp-deps" class="bp-num bp-plain" inputmode="numeric" value="0" /></div>
+                <label class="mini-label" for="bp-deps">Dependents</label>
+                <div class="bp-in"><input id="bp-deps" class="bp-num bp-plain" inputmode="numeric" placeholder="0" /></div>
               </div>
             </div>
 
             <div class="bp-grid">
               <div class="bp-field">
                 <label class="mini-label" for="bp-cc">Credit-card limit</label>
-                <div class="bp-in"><span class="bp-cur">$</span><input id="bp-cc" class="bp-num" inputmode="numeric" value="0" /></div>
+                <div class="bp-in"><span class="bp-cur">$</span><input id="bp-cc" class="bp-num" inputmode="numeric" placeholder="0" /></div>
               </div>
               <div class="bp-field">
                 <label class="mini-label" for="bp-otherdebt">Other debt repay /mo</label>
-                <div class="bp-in"><span class="bp-cur">$</span><input id="bp-otherdebt" class="bp-num" inputmode="numeric" value="0" /></div>
-              </div>
-            </div>
-
-            <div class="bp-grid">
-              <div class="bp-field">
-                <label class="mini-label" for="bp-rental">Rental income /yr</label>
-                <div class="bp-in"><span class="bp-cur">$</span><input id="bp-rental" class="bp-num" inputmode="numeric" value="0" /></div>
-              </div>
-              <div class="bp-field">
-                <div class="mini-label">6&times; income cap</div>
-                <label class="bp-check"><input type="checkbox" id="bp-dti" checked /> apply DTI limit</label>
+                <div class="bp-in"><span class="bp-cur">$</span><input id="bp-otherdebt" class="bp-num" inputmode="numeric" placeholder="0" /></div>
               </div>
             </div>
 
@@ -218,23 +220,45 @@
         </details>
       </div>
 
-      <details class="section sec" open data-ui="costs">
+      <details class="section sec" data-ui="schemes">
         <summary class="sec-sum">
-          <h2><span class="num">04</span> Upfront costs <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--ink-3)">(optional)</span></h2>
-          <span class="sec-chev" aria-hidden="true">▾</span>
+          <h2><span class="num">04</span> First-home buyer schemes</h2>
+          <span class="sec-right">
+            <span class="sec-chip" id="schemesChip"></span>
+            <span class="sec-chev" aria-hidden="true">▾</span>
+          </span>
         </summary>
         <div class="sec-body">
-        <div class="ctl-head" style="margin-bottom:9px">
-          <label for="f-costs" style="font-weight:600;font-size:13.5px">Stamp duty, fees &amp; other</label>
-          <span class="val" id="costsVal" style="font-size:13px">$0</span>
-        </div>
-        <div class="input-wrap" style="border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;background:var(--paper-2)">
-          <span class="prefix" style="font-size:16px">$</span>
-          <input class="money" id="f-costs" inputmode="numeric" style="font-size:18px" value="0" />
-        </div>
-        <div class="sub" style="font-size:11.5px;color:var(--ink-3);margin-top:8px;font-family:'IBM Plex Mono',monospace">Added to your deposit to show total cash needed to settle.</div>
+          <p class="bp-note">Two federal schemes can <b>waive LMI</b> and let first-home buyers in with a tiny deposit. Tell us about you &amp; the property.</p>
+
+          <div class="bp-grid">
+            <div class="bp-field">
+              <div class="mini-label">First home buyer?</div>
+              <div class="seg" id="fhSeg" role="group" aria-label="First home buyer">
+                <button type="button" data-fh="yes" class="on" aria-pressed="true">Yes</button>
+                <button type="button" data-fh="no" aria-pressed="false">No</button>
+              </div>
+            </div>
+            <div class="bp-field">
+              <div class="mini-label">Property type</div>
+              <div class="seg" id="pkSeg" role="group" aria-label="Property type">
+                <button type="button" data-pk="established" class="on" aria-pressed="true">Established</button>
+                <button type="button" data-pk="new" aria-pressed="false">New build</button>
+              </div>
+            </div>
+          </div>
+          <div class="bp-field" style="margin-bottom:15px">
+            <label class="mini-label" for="regionSel">Location — sets the price caps</label>
+            <select class="term" id="regionSel"></select>
+          </div>
+
+          <div class="scheme-card" id="fhbgCard"></div>
+          <div class="scheme-card" id="htbCard"></div>
+
+          <p class="scheme-foot">Eligibility shown is indicative — Housing Australia and your lender make the final call. LMI is an estimate that varies by insurer. Figures use FY2025-26 caps (First Home Guarantee expanded 1&nbsp;Oct&nbsp;2025; Help to Buy live since Dec&nbsp;2025).</p>
         </div>
       </details>
+
 
     </div>
 
@@ -270,11 +294,25 @@
 
       <div class="stat-panel">
         <div class="section" style="border-bottom:none">
+          <div class="extra-head">
+            <h2 style="margin:0">Extra repayments</h2>
+            <div class="extra-in">
+              <span class="extra-cur">$</span>
+              <input id="f-extra" inputmode="numeric" placeholder="0" aria-label="Extra repayment amount per period" />
+              <span class="extra-freq" id="extraFreq">/fortnight</span>
+            </div>
+          </div>
+          <p class="extra-result" id="extraResult"></p>
+        </div>
+      </div>
+
+      <div class="stat-panel">
+        <div class="section" style="border-bottom:none">
           <div class="sched-head">
-            <h2 style="margin:0"><span class="num">05</span> Repayment schedule</h2>
+            <h2 style="margin:0">Repayment schedule</h2>
             <div class="seg sched-seg" id="schedSeg" role="group" aria-label="Schedule granularity">
-              <button type="button" data-sched="yearly" class="on" aria-pressed="true">Yearly</button>
-              <button type="button" data-sched="period" aria-pressed="false" id="schedPeriodBtn">Fortnightly</button>
+              <button type="button" data-sched="period" class="on" aria-pressed="true" id="schedPeriodBtn">Fortnightly</button>
+              <button type="button" data-sched="yearly" aria-pressed="false">Yearly</button>
             </div>
           </div>
           <p class="sched-intro" id="schedIntro"></p>
@@ -289,7 +327,7 @@
 
       <div class="stat-panel">
         <div class="section" style="border-bottom:none">
-          <h2><span class="num">06</span> Loan over time <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--ink-3)" id="chartSub"></span></h2>
+          <h2>Loan over time <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--ink-3)" id="chartSub"></span></h2>
           <div class="chart-wrap" id="chartWrap"></div>
           <div class="split-bar" id="splitBar"><div class="seg-p" style="width:60%"></div><div class="seg-i" style="width:40%"></div></div>
           <div class="split-legend">
@@ -299,18 +337,6 @@
           </div>
         </div>
       </div>
-
-      <details class="notes">
-        <summary>How the numbers are calculated <span class="chev">▾</span></summary>
-        <div class="body">
-          <p><b>Assessment rate.</b> Lenders stress-test your serviceability at your interest rate <i>plus</i> a buffer (APRA's guidance is <code>+3%</code>). Assessment rate = <code>rate + buffer</code>.</p>
-          <p><b>Repayment capacity.</b> When you lock a repayment, it's treated as your <i>assessed</i> repayment by default — the figure tested at the assessment rate. That's why raising the buffer lowers the loan you can support. Switch to <i>Actual @ rate</i> to instead lock what you'd really pay at today's rate (the buffer then won't change the loan).</p>
-          <p><b>Repayments</b> are principal &amp; interest, amortised over the full term: <code>M = L·i / (1 − (1+i)⁻ⁿ)</code>, where <code>i</code> is the periodic rate and <code>n</code> the number of payments. The reverse (loan from repayment) inverts the same formula.</p>
-          <p><b>LVR</b> = loan ÷ property value. Above 80% most lenders charge Lenders Mortgage Insurance (LMI), which isn't included here. <b>Cash to settle</b> = deposit + upfront costs.</p>
-          <p><b>Borrowing power</b> is estimated the way Australian lenders test serviceability: gross income is taxed to net (ATO FY2024-25 brackets + Medicare + LITO), bonus/overtime &amp; other income counted in full and rental at ~85%, then living expenses are set to the greater of what you declare and the <i>Household Expenditure Measure</i> (HEM). The HEM here is an <b>income-scaled</b> floor — calibrated against CommBank's live calculator, it rises with income (≈ <code>$1,600/mo</code> at $60k up to ≈ <code>$4,900/mo</code> at $350k for a single), which is why a higher salary doesn't lift your borrowing power one-for-one. Credit-card limits count at <code>3.8%/mo</code>. The leftover monthly surplus is serviced at the assessment rate over the term to give a maximum loan, then capped at <code>~6×</code> gross income (APRA's debt-to-income limit). Tuned to track CommBank's public calculator within a few percent across typical incomes — still an approximation for planning, not a bank's exact number.</p>
-          <p>Estimates only — for planning, not financial advice. Actual lender policies, HEM tables, tax and rates vary and change over time.</p>
-        </div>
-      </details>
 
     </div>
   </div>
