@@ -9,8 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "size": "node scripts/size-budget.mjs",
-    "profile:js": "node scripts/js-profile.mjs",
-    "test": "node scripts/size-budget.mjs"
+    "profile:js": "node scripts/size-budget.mjs --js",
+    "test": "node --test \"__tests__/**/*.test.js\""
   },
   "devDependencies": {
     "vite": "^7.1.0",

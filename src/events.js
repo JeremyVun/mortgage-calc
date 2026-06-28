@@ -1,8 +1,8 @@
 import { S } from "./state.js";
 import { estimateBorrowingPower } from "./finance.js";
-import { parseNum, nf0 } from "./format.js";
+import { parseNum, moneyInput, moneyRaw } from "./format.js";
 import { byId, REDUCE_MOTION } from "./dom.js";
-import { render, renderSources, renderIncomes, syncBpSegs, renderEstimator, renderSchemeArea, setActiveEdit } from "./render.js";
+import { render, renderSources, renderIncomes, syncBpSegs, renderEstimator, renderIncomeArea, renderSchemeArea, setActiveEdit } from "./render.js";
 import { saveStateSoon } from "./persist.js";
 
 /* ============================ Lock logic ============================ */
@@ -31,14 +31,6 @@ export function bind() {
   rateNum.addEventListener("input", () => { S.rate = Math.min(12, Math.max(0, parseNum(rateNum.value))); render(); });
   rateNum.addEventListener("blur", () => { rateNum.value = S.rate.toFixed(2); });
 
-  // servicing buffer (lives in the borrowing-power section now) — field + ± steppers
-  const bufNum = byId("buffer-num");
-  const setBuffer = (v) => { S.buffer = Math.min(5, Math.max(0, isFinite(v) ? v : 0)); render(); };
-  bufNum.addEventListener("input", () => setBuffer(parseNum(bufNum.value)));
-  bufNum.addEventListener("blur", () => { bufNum.value = S.buffer.toFixed(2); });
-  byId("bufMinus").addEventListener("click", () => setBuffer(Math.round((S.buffer - 0.25) * 100) / 100));
-  byId("bufPlus").addEventListener("click", () => setBuffer(Math.round((S.buffer + 0.25) * 100) / 100));
-
   // term
   byId("term").addEventListener("change", (e) => { S.termYears = parseInt(e.target.value, 10); render(); });
 
@@ -65,42 +57,50 @@ export function bind() {
     input.addEventListener("blur", () => { setActiveEdit(null); render(); });
   });
 
+  // Generic binder for the grouped-digits / edit-raw / blank-when-zero money inputs
+  // (deposit + per-applicant income rows are delegated separately). `paint` is the
+  // re-render run on each keystroke — renderEstimator for the estimator fields by default.
+  const bindMoney = (elId, get, set, paint = renderEstimator) => {
+    const el = byId(elId);
+    el.addEventListener("focus", () => { el.value = moneyRaw(get()); el.select(); });
+    el.addEventListener("input", () => { set(parseNum(el.value)); paint(); });
+    el.addEventListener("blur", () => { el.value = moneyInput(get()); });
+  };
   // extra repayments (paid on top of each scheduled repayment, in the selected frequency)
-  const extra = byId("f-extra");
-  extra.addEventListener("focus", () => { extra.value = S.extra ? String(Math.round(S.extra)) : ""; extra.select(); });
-  extra.addEventListener("input", () => { S.extra = parseNum(extra.value); render(); });
-  extra.addEventListener("blur", () => { extra.value = S.extra ? nf0.format(Math.round(S.extra)) : ""; });
+  bindMoney("f-extra", () => S.extra, (v) => { S.extra = v; }, render);
 
   // deposit funding sources (delegated; rows rebuilt only on add/remove so typing never loses caret)
   const dep = byId("depSources");
   dep.addEventListener("input", (e) => {
     const el = e.target, i = +el.dataset.idx;
     if (!S.depositSources[i]) return;
-    if (el.classList.contains("dep-amt")) { S.depositSources[i].amount = parseNum(el.value); render(); }
-    else if (el.classList.contains("dep-name")) { S.depositSources[i].name = el.value; saveStateSoon(); } // name feeds no calc — skip the full render/recompute
+    if (el.classList.contains("src-amt")) { S.depositSources[i].amount = parseNum(el.value); render(); }
+    else if (el.classList.contains("src-name")) { S.depositSources[i].name = el.value; saveStateSoon(); } // name feeds no calc — skip the full render/recompute
   });
   dep.addEventListener("focusin", (e) => {
-    const el = e.target;
-    if (el.classList.contains("dep-amt")) { const a = S.depositSources[+el.dataset.idx].amount; el.value = a ? String(Math.round(a)) : ""; el.select(); }
+    const el = e.target, src = S.depositSources[+el.dataset.idx];
+    // guard the index: deleting a row splices the array, so a still-focused sibling's
+    // data-idx can be stale by the time its focus event fires.
+    if (el.classList.contains("src-amt") && src) { el.value = moneyRaw(src.amount); el.select(); }
   });
   dep.addEventListener("focusout", (e) => {
-    const el = e.target;
-    if (el.classList.contains("dep-amt")) { const a = S.depositSources[+el.dataset.idx].amount; el.value = a ? nf0.format(Math.round(a)) : ""; }
+    const el = e.target, src = S.depositSources[+el.dataset.idx];
+    if (el.classList.contains("src-amt") && src) { el.value = moneyInput(src.amount); }
   });
   dep.addEventListener("click", (e) => {
-    const del = e.target.closest(".dep-del"); if (!del) return;
+    const del = e.target.closest(".src-del"); if (!del) return;
     const idx = +del.dataset.idx;
     S.depositSources.splice(idx, 1);
     if (S.depositSources.length === 0) S.depositSources.push({ name: "", amount: 0 });
     renderSources(); render();
-    const names = byId("depSources").querySelectorAll(".dep-name"); // keep keyboard focus in the list
+    const names = byId("depSources").querySelectorAll(".src-name"); // keep keyboard focus in the list
     const focusEl = names[Math.min(idx, names.length - 1)];
     if (focusEl) focusEl.focus();
   });
   byId("addSource").addEventListener("click", () => {
     S.depositSources.push({ name: "", amount: 0 });
     renderSources(); render();
-    const names = byId("depSources").querySelectorAll(".dep-name");
+    const names = byId("depSources").querySelectorAll(".src-name");
     if (names.length) names[names.length - 1].focus();
   });
 
@@ -119,16 +119,10 @@ export function bind() {
   });
 
   /* ---------- borrowing-power estimator ---------- */
-  const bindBpMoney = (elId, get, set) => {
-    const el = byId(elId);
-    el.addEventListener("focus", () => { el.value = get() ? String(Math.round(get())) : ""; el.select(); });
-    el.addEventListener("input", () => { set(parseNum(el.value)); renderEstimator(); });
-    el.addEventListener("blur", () => { el.value = get() ? nf0.format(Math.round(get())) : ""; });
-  };
   byId("bpApplicants").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
     S.estimator.applicants = parseInt(b.dataset.app, 10); // household type is derived from this
-    renderIncomes(); syncBpSegs(); render();
+    renderIncomes(); syncBpSegs(); renderIncomeArea(); // income-only: skip the loan/chart/schedule repaint
   });
 
   // income blocks (per applicant): salary + bonus boxes, extra income lines, HECS toggle.
@@ -138,44 +132,43 @@ export function bind() {
   const extraOf = (el) => { const o = incOf(el); return o && o.extra ? o.extra[+el.dataset.idx] : null; };
   inc.addEventListener("input", (e) => {
     const el = e.target;
-    if (el.classList.contains("inc-main")) { const o = incOf(el); if (o) { o[el.dataset.field] = parseNum(el.value); render(); } } // salary / bonus
-    else if (el.classList.contains("inc-amt")) { const row = extraOf(el); if (row) { row.amount = parseNum(el.value); render(); } } // extra income drives schemes too
-    else if (el.classList.contains("inc-name")) { const row = extraOf(el); if (row) { row.label = el.value; saveStateSoon(); } } // label feeds no calc
+    if (el.classList.contains("inc-main")) { const o = incOf(el); if (o) { o[el.dataset.field] = parseNum(el.value); renderIncomeArea(); } } // salary / bonus
+    else if (el.classList.contains("src-amt")) { const row = extraOf(el); if (row) { row.amount = parseNum(el.value); renderIncomeArea(); } } // extra income line (rental/other)
+    else if (el.classList.contains("src-name")) { const row = extraOf(el); if (row) { row.label = el.value; saveStateSoon(); } } // label feeds no calc
   });
   inc.addEventListener("change", (e) => {
     const el = e.target;
-    if (el.classList.contains("inc-kind")) { const row = extraOf(el); if (row) { row.kind = el.value; render(); } }
-    else if (el.classList.contains("hecs-check")) { const o = incOf(el); if (o) { o.hecs = el.checked; render(); } }
+    if (el.classList.contains("hecs-check")) { const o = incOf(el); if (o) { o.hecs = el.checked; renderIncomeArea(); } }
   });
   inc.addEventListener("focusin", (e) => {
     const el = e.target;
-    if (el.classList.contains("inc-main")) { const v = incOf(el)[el.dataset.field]; el.value = v ? String(Math.round(v)) : ""; el.select(); }
-    else if (el.classList.contains("inc-amt")) { const row = extraOf(el); el.value = row && row.amount ? String(Math.round(row.amount)) : ""; el.select(); }
+    if (el.classList.contains("inc-main")) { const v = incOf(el)[el.dataset.field]; el.value = moneyRaw(v); el.select(); }
+    else if (el.classList.contains("src-amt")) { const row = extraOf(el); el.value = row ? moneyRaw(row.amount) : ""; el.select(); }
   });
   inc.addEventListener("focusout", (e) => {
     const el = e.target;
-    if (el.classList.contains("inc-main")) { const v = incOf(el)[el.dataset.field]; el.value = v ? nf0.format(Math.round(v)) : ""; }
-    else if (el.classList.contains("inc-amt")) { const row = extraOf(el); el.value = row && row.amount ? nf0.format(Math.round(row.amount)) : ""; }
+    if (el.classList.contains("inc-main")) { const v = incOf(el)[el.dataset.field]; el.value = moneyInput(v); }
+    else if (el.classList.contains("src-amt")) { const row = extraOf(el); el.value = row ? moneyInput(row.amount) : ""; }
   });
   inc.addEventListener("click", (e) => {
     const add = e.target.closest(".inc-add");
     if (add) {
       const o = S.estimator.incomes[+add.dataset.app];
-      if (o) { if (!o.extra) o.extra = []; o.extra.push({ label: "", amount: 0, kind: "rental" }); }
+      if (o) { if (!o.extra) o.extra = []; o.extra.push({ label: "", amount: 0 }); }
       renderIncomes(); render();
-      const names = inc.querySelectorAll(`.inc-row[data-app="${add.dataset.app}"] .inc-name`);
+      const names = inc.querySelectorAll(`.src-row[data-app="${add.dataset.app}"] .src-name`);
       if (names.length) names[names.length - 1].focus();
       return;
     }
-    const del = e.target.closest(".inc-del"); if (!del) return;
+    const del = e.target.closest(".src-del"); if (!del) return;
     const o = S.estimator.incomes[+del.dataset.app];
     if (o && o.extra) o.extra.splice(+del.dataset.idx, 1);
     renderIncomes(); render();
   });
 
-  bindBpMoney("bp-expenses", () => S.estimator.expenses, (v) => { S.estimator.expenses = v; });
-  bindBpMoney("bp-cc", () => S.estimator.ccLimit, (v) => { S.estimator.ccLimit = v; });
-  bindBpMoney("bp-otherdebt", () => S.estimator.otherDebt, (v) => { S.estimator.otherDebt = v; });
+  bindMoney("bp-expenses", () => S.estimator.expenses, (v) => { S.estimator.expenses = v; });
+  bindMoney("bp-cc", () => S.estimator.ccLimit, (v) => { S.estimator.ccLimit = v; });
+  bindMoney("bp-otherdebt", () => S.estimator.otherDebt, (v) => { S.estimator.otherDebt = v; });
   byId("bp-deps").addEventListener("input", () => { S.estimator.dependents = Math.max(0, Math.round(parseNum(byId("bp-deps").value))); renderEstimator(); });
   byId("bpApply").addEventListener("click", () => {
     const est = estimateBorrowingPower();
@@ -193,25 +186,5 @@ export function bind() {
     const b = e.target.closest("button"); if (!b) return;
     S.buyer.firstHome = b.dataset.fh === "yes"; renderSchemeArea();
   });
-  byId("pkSeg").addEventListener("click", (e) => {
-    const b = e.target.closest("button"); if (!b) return;
-    S.buyer.propertyKind = b.dataset.pk; renderSchemeArea();
-  });
   byId("regionSel").addEventListener("change", (e) => { S.buyer.region = e.target.value; renderSchemeArea(); });
-
-  // keyboard: arrow nudge on focused money field
-  document.querySelectorAll(".field input.money").forEach((input) => {
-    input.addEventListener("keydown", (e) => {
-      if (input.readOnly) return;
-      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-      e.preventDefault();
-      const key = input.closest(".field").dataset.key;
-      const base = key === "repayment" ? 50 : 5000;
-      const step = e.shiftKey ? base * 10 : base;
-      S[key] = Math.max(0, (S[key] || 0) + (e.key === "ArrowUp" ? step : -step));
-      // keep the field "active" so render() won't reformat it (which would jump the caret);
-      // display the nudged value directly, without thousands separators
-      setActiveEdit(key); render(); input.value = String(Math.round(S[key]));
-    });
-  });
 }

@@ -5,7 +5,6 @@ export function freshIncome() { return { salary: 0, bonus: 0, extra: [], hecs: f
 
 export const S = {
   rate: 6.0,
-  buffer: 3.0,              // servicing buffer — used ONLY by the borrowing-power estimate
   termYears: 30,
   freq: "fortnightly",
   property: 1000000,
@@ -26,10 +25,9 @@ export const S = {
     ccLimit: 0,               // total credit-card / revolving limit
     otherDebt: 0,             // existing monthly debt repayments
   },
-  buyer: {                    // for LMI + government-scheme eligibility
+  buyer: {                    // for LMI + First Home Guarantee eligibility
     firstHome: true,
-    propertyKind: "established", // "established" | "new"
-    region: "nsw-cap",        // keyed into SCHEME price-cap regions (see schemes.js)
+    region: "NSW · cities",   // matches a REGIONS[].label in finance.js (label is the key now)
   },
   locked: ["property", "loan"], // exactly 2, never {loan,repayment}
   ui: {                       // view state (persisted): collapsible panels + schedule granularity
@@ -38,24 +36,14 @@ export const S = {
   },
 };
 
-/* Extra income-line kinds (salary & bonus have their own boxes, so these are the
-   "add another income" options). `shade` is how much a lender counts toward
-   serviceability — rental is haircut to 85%, other counted in full (matching CBA). */
-export const INCOME_KINDS = [
-  { id: "rental", label: "Rental income" },
-  { id: "other",  label: "Other income" },
-];
-export const INCOME_SHADE = { salary: 1.0, bonus: 1.0, rental: 0.85, other: 1.0 };
-
 export function depositTotal() { return S.depositSources.reduce((a, s) => a + (isFinite(s.amount) ? s.amount : 0), 0); }
 
 export const FREQ_PPY = { monthly: 12, fortnightly: 26, weekly: 52 };
 export const FREQ_LABEL = { monthly: "month", fortnightly: "fortnight", weekly: "week" };
-export const FREQ_SHORT = { monthly: "/mo", fortnightly: "/fn", weekly: "/wk" };
 export const FREQ_TITLE = { monthly: "Monthly", fortnightly: "Fortnightly", weekly: "Weekly" };
 
 /* ============================ Persistence keys ============================ */
 export const STORAGE_KEY = "mortgage-calc/v2";
 // Only the INPUT state is persisted; derived fields are recomputed by solve() on restore.
-export const PERSIST_KEYS = ["rate", "buffer", "termYears", "freq", "property", "deposit",
+export const PERSIST_KEYS = ["rate", "termYears", "freq", "property", "deposit",
   "depositSources", "loan", "repayment", "extra", "estimator", "buyer", "locked", "ui"];

@@ -1,4 +1,4 @@
-import { S, depositTotal, FREQ_PPY, INCOME_SHADE } from "./state.js";
+import { S, depositTotal, FREQ_PPY } from "./state.js";
 
 /* ===== Borrowing-power constants (public AU serviceability methodology, FY2024-25) =====
    Tweakable in one place. CALIBRATED EMPIRICALLY against CommBank's live "How much can I
@@ -7,14 +7,14 @@ import { S, depositTotal, FREQ_PPY, INCOME_SHADE } from "./state.js";
      estimation bug. The tables below are HEM $/mo keyed on TOTAL assessable income, derived
      by isolating CBA's net income (high-expense runs) from its floor ($0-expense runs).
    • CBA's after-tax (net) income matches our ATO tax fns below within ~0.5%, so tax is untouched.
-   • CBA's public calculator credits "other income" (bonus/overtime/dividends) at 100% and
-     rental at ~85%; credit-card limit assessed ~3.75%/mo; each dependent child ≈ $455/mo HEM.
+   • credit-card limit assessed ~3.75%/mo; each dependent child ≈ $455/mo HEM.
    Sources: APRA (3.0pp buffer kept Jul 2025), CBA (5.40% floor, 9.09% assessed at 6.09% product). */
 export const BP = {
-  FLOOR_RATE: 5.40,     // assessment rate = max(rate + buffer, floor)
+  FLOOR_RATE: 5.40,     // assessment rate = max(rate + BUFFER, floor)
+  BUFFER: 3.0,          // APRA serviceability buffer (pp) added to the product rate — fixed, no UI control
   CC_FACTOR: 0.0380,    // assessed monthly repayment = 3.8% of card LIMIT (even at $0 balance)
   HEM_CHILD: 455,       // added to the HEM floor per dependent child
-  // income shading (salary/bonus/other at 100%, rental at ~85%) now lives in state.INCOME_SHADE
+  // all assessable income (salary, bonus, extra lines) is counted at 100% — see sumIncome()
   DTI: 6.0,             // soft cap: max loan ~ 6x gross income
   // HEM living-expense floor ($/mo, excl. rent/mortgage) vs TOTAL assessable income ($/yr).
   // Piecewise-linear; scales toward 0 below the first anchor, extrapolates above the last.
@@ -48,17 +48,16 @@ function hemFloor(couple, totalAssessable, dependents) {
 /* Compulsory HECS/HELP repayment ($/yr) on a repayment income, ATO FY2024-25 rate
    table (whole-of-income percentage). A real serviceability commitment that continues
    until the debt clears, so lenders deduct it. Returns 0 below the first threshold. */
-// [upper-bound-of-bracket, rate]: the first row whose bound the income falls under wins.
-export const HECS_TABLE = [
-  [62851, 0.010], [66621, 0.020], [70619, 0.025], [74856, 0.030], [79347, 0.035],
-  [84108, 0.040], [89155, 0.045], [94504, 0.050], [100175, 0.055], [106186, 0.060],
-  [112557, 0.065], [119310, 0.070], [126468, 0.075], [134057, 0.080], [142101, 0.085],
-  [150627, 0.090], [159664, 0.095], [Infinity, 0.100],
-];
+// Upper bound of each bracket; the first bound the income falls UNDER sets the rate.
+// Rates are a near-arithmetic sequence — 1.0% in the first bracket, then 2.0%, 2.5%, 3.0% …
+// rising +0.5%/bracket (0.015 + 0.005·k) to 10.0% above the last bound — so a formula
+// replaces the old [bound, rate] table.
+export const HECS_BOUNDS = [62851, 66621, 70619, 74856, 79347, 84108, 89155, 94504, 100175,
+  106186, 112557, 119310, 126468, 134057, 142101, 150627, 159664];
 export function hecsRepaymentAnnual(income) {
   if (!(income >= 54435)) return 0; // below the FY2024-25 minimum repayment threshold
-  let rate = 0.10;
-  for (const [ceil, r] of HECS_TABLE) { if (income < ceil) { rate = r; break; } }
+  const k = HECS_BOUNDS.findIndex((ceil) => income < ceil); // -1 → above every bound
+  const rate = k < 0 ? 0.10 : k === 0 ? 0.010 : 0.015 + 0.005 * k;
   return income * rate;
 }
 // AU resident income tax, FY2024-25 / FY2025-26 (16c second bracket; drops to 15c from 1 Jul 2026).
@@ -85,37 +84,30 @@ function afterTaxAU(g) {
   return g - (Math.max(0, incomeTaxAU(g) - litoAU(g)) + medicareAU(g));
 }
 
-/* Sum one applicant's income (salary + bonus + extra lines) into a shaded-assessable
-   total and a raw total. `shaded` is what a lender counts (rental haircut to 85%);
-   `raw` is the headline gross. */
+/* Sum one applicant's assessable income (salary + bonus + extra lines). A lender counts
+   all of it toward serviceability. */
 function sumIncome(inc) {
   const n = (v) => (isFinite(v) ? v : 0);
-  let shaded = n(inc && inc.salary) + n(inc && inc.bonus);
-  let raw = shaded;
-  for (const r of (inc && inc.extra) || []) {
-    const amt = r && isFinite(r.amount) ? r.amount : 0;
-    shaded += amt * (INCOME_SHADE[r && r.kind] ?? 1);
-    raw += amt;
-  }
-  return { shaded, raw };
+  let total = n(inc && inc.salary) + n(inc && inc.bonus);
+  for (const r of (inc && inc.extra) || []) total += r && isFinite(r.amount) ? r.amount : 0;
+  return total;
 }
 
 /* Estimate borrowing power the way a lender assesses serviceability (all monthly, p=12). */
 export function estimateBorrowingPower() {
   const e = S.estimator;
   const couple = e.applicants === 2; // household type is derived from applicant count
-  const assessmentRate = Math.max(S.rate + S.buffer, BP.FLOOR_RATE);
-  let netAnnual = 0, grossAnnual = 0, assessableAnnual = 0, hecsAnnual = 0;
+  const assessmentRate = Math.max(S.rate + BP.BUFFER, BP.FLOOR_RATE);
+  let netAnnual = 0, grossAnnual = 0, hecsAnnual = 0;
   for (let idx = 0; idx < e.applicants; idx++) {
     const inc = e.incomes[idx];
-    const { shaded, raw } = sumIncome(inc); // tax & HEM key on shaded assessable income
-    netAnnual += afterTaxAU(shaded);
-    assessableAnnual += shaded;
-    grossAnnual += raw; // unshaded, for the DTI cap
-    if (inc && inc.hecs) hecsAnnual += hecsRepaymentAnnual(raw); // HECS keys on repayment income
+    const income = sumIncome(inc);
+    netAnnual += afterTaxAU(income);
+    grossAnnual += income; // also drives the DTI cap and the HEM income key
+    if (inc && inc.hecs) hecsAnnual += hecsRepaymentAnnual(income); // HECS keys on repayment income
   }
   const netMonthly = netAnnual / 12;
-  const hem = hemFloor(couple, assessableAnnual, e.dependents);
+  const hem = hemFloor(couple, grossAnnual, e.dependents);
   const expensesMonthly = Math.max(e.expenses || 0, hem);
   const hemBinds = (e.expenses || 0) <= hem;
   const hecsMonthly = hecsAnnual / 12;
@@ -157,83 +149,60 @@ export function estimateLMI(loan, propertyValue) {
   return { premium: (loan * rate) / 100, rate, lvr, capped: lvr > 95 };
 }
 
-/* ===================== Government schemes (FY2025-26) =====================
-   First Home Guarantee (the "5% deposit, no LMI" scheme) — expanded 1 Oct 2025:
-   income caps and place limits removed; only property price caps remain.
-   Help to Buy — federal shared-equity scheme, live since 5 Dec 2025: min 2% deposit,
-   Commonwealth takes up to 40% (new) / 30% (established) equity; income-capped.
-   Price caps by region. Sources: housingaustralia.gov.au, firsthomebuyers.gov.au, treasury. */
+/* ===================== First Home Guarantee (FY2025-26) =====================
+   The "5% deposit, no LMI" scheme — expanded 1 Oct 2025: income caps and place limits
+   removed, so only the per-region property price cap (fhbg) gates eligibility.
+   Source: housingaustralia.gov.au. */
 export const REGIONS = [
-  { id: "nsw-cap",  label: "NSW · Sydney, Newcastle, Illawarra", fhbg: 1500000, htb: 1300000 },
-  { id: "nsw-rest", label: "NSW · rest of state",               fhbg: 800000,  htb: 800000 },
-  { id: "vic-cap",  label: "VIC · Melbourne / Geelong",         fhbg: 950000,  htb: 950000 },
-  { id: "vic-rest", label: "VIC · rest of state",               fhbg: 650000,  htb: 650000 },
-  { id: "qld-cap",  label: "QLD · Brisbane, Gold & Sunshine Cst", fhbg: 1000000, htb: 1000000 },
-  { id: "qld-rest", label: "QLD · rest of state",               fhbg: 700000,  htb: 700000 },
-  { id: "wa-cap",   label: "WA · Perth",                        fhbg: 850000,  htb: 850000 },
-  { id: "wa-rest",  label: "WA · rest of state",                fhbg: 600000,  htb: 600000 },
-  { id: "sa-cap",   label: "SA · Adelaide",                     fhbg: 900000,  htb: 900000 },
-  { id: "sa-rest",  label: "SA · rest of state",                fhbg: 500000,  htb: 500000 },
-  { id: "tas-cap",  label: "TAS · Hobart",                      fhbg: 700000,  htb: 700000 },
-  { id: "tas-rest", label: "TAS · rest of state",               fhbg: 550000,  htb: 550000 },
-  { id: "act",      label: "ACT",                               fhbg: 1000000, htb: 1000000 },
-  { id: "nt",       label: "NT",                                fhbg: 600000,  htb: 600000 },
+  { label: "NSW · cities",   fhbg: 1500000 },
+  { label: "NSW · regional", fhbg: 800000 },
+  { label: "VIC · cities",   fhbg: 950000 },
+  { label: "VIC · regional", fhbg: 650000 },
+  { label: "QLD · cities",   fhbg: 1000000 },
+  { label: "QLD · regional", fhbg: 700000 },
+  { label: "WA · cities",    fhbg: 850000 },
+  { label: "WA · regional",  fhbg: 600000 },
+  { label: "SA · cities",    fhbg: 900000 },
+  { label: "SA · regional",  fhbg: 500000 },
+  { label: "TAS · cities",   fhbg: 700000 },
+  { label: "TAS · regional", fhbg: 550000 },
+  { label: "ACT",            fhbg: 1000000 },
+  { label: "NT",             fhbg: 600000 },
 ];
-export const HTB = { minDepositPct: 2, equityNew: 40, equityExisting: 30, incomeSingle: 100000, incomeJoint: 160000 };
 export const FHBG = { minDepositPct: 5 };
 
-/* Assess scheme eligibility against the current property, household & income.
-   `r` is a solve() snapshot; `est` is an estimateBorrowingPower() snapshot. */
-export function assessSchemes(r, est) {
+/* Assess First Home Guarantee eligibility (5% deposit, no LMI) against the current
+   property + buyer. Since the 1 Oct 2025 expansion there is no income or place test, so
+   only the first-home flag and the regional price cap matter. `r` is a solve() snapshot. */
+export function assessSchemes(r) {
   const b = S.buyer;
-  const region = REGIONS.find((x) => x.id === b.region) || REGIONS[0];
-  const P = r.P, p = ppy();
-
-  // ---- First Home Guarantee (5% deposit, no LMI) ----
-  const fCap = region.fhbg;
-  const fUnderCap = P > 0 && P <= fCap;
+  const region = REGIONS.find((x) => x.label === b.region) || REGIONS[0];
+  const P = r.P;
+  const cap = region.fhbg;
+  const underCap = P > 0 && P <= cap;
   const fhbg = {
-    eligible: b.firstHome && fUnderCap,
-    firstHome: b.firstHome, underCap: fUnderCap, cap: fCap,
+    eligible: b.firstHome && underCap,
+    firstHome: b.firstHome, underCap, cap,
     minDeposit: P * (FHBG.minDepositPct / 100),
     lmiSaved: estimateLMI(P * 0.95, P).premium, // LMI you'd otherwise pay buying at 5% deposit
   };
-
-  // ---- Help to Buy (shared equity) ----
-  const hCap = region.htb;
-  const hUnderCap = P > 0 && P <= hCap;
-  const single = S.estimator.applicants === 1;
-  const incomeCap = single ? HTB.incomeSingle : HTB.incomeJoint;
-  const underIncome = est.grossAnnual <= incomeCap;
-  const equityPct = b.propertyKind === "new" ? HTB.equityNew : HTB.equityExisting;
-  const govEquity = P * (equityPct / 100);
-  const minDeposit = P * (HTB.minDepositPct / 100);
-  const buyerLoan = Math.max(0, P - govEquity - minDeposit);
-  const htb = {
-    eligible: b.firstHome && hUnderCap && underIncome,
-    firstHome: b.firstHome, underCap: hUnderCap, cap: hCap,
-    underIncome, incomeCap, single, equityPct, govEquity, minDeposit, buyerLoan,
-    repayment: pmt(buyerLoan, S.rate, S.termYears, p),
-    repayMonthly: pmt(buyerLoan, S.rate, S.termYears, 12),
-  };
-
-  return { region, fhbg, htb };
+  return { region, fhbg };
 }
 
 /* ============================ Math ============================ */
 export const ppy = () => FREQ_PPY[S.freq];
 
-export function pmt(L, annualPct, years, p) {
-  if (!(L > 0)) return 0;
+// Present-value annuity factor A = (1 − (1+i)^−n)/i (→ n when i = 0). A repayment is
+// L/A and its inverse (loan from a repayment) is R·A, so both share this one factor.
+function annuityFactor(annualPct, years, p) {
   const i = annualPct / 100 / p, n = years * p;
-  if (i === 0) return L / n;
-  return (L * i) / (1 - Math.pow(1 + i, -n));
+  return i === 0 ? n : (1 - Math.pow(1 + i, -n)) / i;
+}
+export function pmt(L, annualPct, years, p) {
+  return L > 0 ? L / annuityFactor(annualPct, years, p) : 0;
 }
 export function loanFromPmt(R, annualPct, years, p) {
-  if (!(R > 0)) return 0;
-  const i = annualPct / 100 / p, n = years * p;
-  if (i === 0) return R * n;
-  return (R * (1 - Math.pow(1 + i, -n))) / i;
+  return R > 0 ? R * annuityFactor(annualPct, years, p) : 0;
 }
 
 /* Solve the system from the two locked figures. Returns a full snapshot.
@@ -287,31 +256,19 @@ export function solve() {
   return { p, L, P, D, rActual, monthly, n, totalRepaid, totalInterest, lvr, depPct, availableFunds: D_input };
 }
 
-/* Per-payment amortisation rows (one per period: monthly/fortnightly/weekly).
-   `extra` is paid on top of every scheduled payment; the loan then clears early. */
-export function periodRows(L, annualPct, years, p, extra = 0) {
-  const i = annualPct / 100 / p, n = years * p, M = pmt(L, annualPct, years, p) + Math.max(0, extra);
-  let bal = L; const rows = [];
-  for (let k = 1; k <= n; k++) {
-    const int = i === 0 ? 0 : bal * i;
-    let prin = M - int; if (prin > bal) prin = bal;
-    bal -= prin;
-    rows.push({ k, interest: int, principal: prin, balance: Math.max(0, bal) });
-    if (bal <= 0) break; // extra repayments cleared the loan early
-  }
-  return rows;
-}
-
 /* ---- amortisation schedule + chart ----
    `extra` (paid on top of every scheduled payment) shortens the loan; `payoffYears`
-   reports when the balance actually hits zero so callers can show the time saved. */
-export function amortize(L, annualPct, years, p, extra = 0) {
+   reports when the balance actually hits zero so callers can show the time saved.
+   `withPeriods` also collects the per-period rows the loop already computes (so the
+   per-period schedule view reuses this single walk). */
+export function amortize(L, annualPct, years, p, extra = 0, withPeriods = false) {
   const i = annualPct / 100 / p, n = years * p;
   const M = pmt(L, annualPct, years, p);
   const pay = M + Math.max(0, extra);
   let bal = L, intCum = 0, yrInt = 0, yrPrin = 0;
   const pts = [{ yr: 0, bal: L }];
   const rows = []; // one per year: {yr, interest, principal, balance}
+  const perRows = withPeriods ? [] : null; // one per period: {k, interest, principal, balance}
   let last = 0;
   for (let k = 1; k <= n; k++) {
     last = k;
@@ -319,6 +276,7 @@ export function amortize(L, annualPct, years, p, extra = 0) {
     let prin = pay - int;
     if (prin > bal) prin = bal;
     bal -= prin; intCum += int; yrInt += int; yrPrin += prin;
+    if (withPeriods) perRows.push({ k, interest: int, principal: prin, balance: Math.max(0, bal) });
     if (k % p === 0 || bal <= 0 || k === n) {
       pts.push({ yr: k / p, bal: Math.max(0, bal) });
       rows.push({ yr: Math.ceil(k / p), interest: yrInt, principal: yrPrin, balance: Math.max(0, bal) });
@@ -326,5 +284,5 @@ export function amortize(L, annualPct, years, p, extra = 0) {
     }
     if (bal <= 0) break;
   }
-  return { pts, rows, totalInterest: intCum, M, pay, periods: last, payoffYears: last / p };
+  return { pts, rows, perRows, totalInterest: intCum, M, pay, periods: last, payoffYears: last / p };
 }

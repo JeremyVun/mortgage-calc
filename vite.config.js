@@ -62,6 +62,25 @@ function precompress() {
   };
 }
 
+// Vite's build.minify only touches JS/CSS — HTML comments pass straight through
+// viteSingleFile into dist/index.html. Strip them here so the section markers etc.
+// stay in source (editing sanity) but never ship. order:"pre" runs on the author
+// HTML *before* the bundle is inlined, so we only ever touch authored comments,
+// never anything inside the minified <script>/<style>.
+function stripHtmlComments() {
+  return {
+    name: "strip-html-comments",
+    apply: "build",
+    transformIndexHtml: {
+      order: "pre",
+      handler: (html) =>
+        html
+          .replace(/^[ \t]*<!--[\s\S]*?-->[ \t]*\r?\n/gm, "") // whole-line comments
+          .replace(/<!--[\s\S]*?-->/g, ""), // inline leftovers (e.g. statGrid)
+    },
+  };
+}
+
 // Static single-page app. The SOURCE is split into ES modules + styles.css for
 // editing sanity, but the BUILD output is one self-contained dist/index.html with the
 // JS and CSS inlined — a single request, no HTML -> JS -> CSS waterfall, and (via the
@@ -71,7 +90,7 @@ function precompress() {
 //   npm run build    -> dist/index.html (one inlined file; what nginx ships)
 //   npm run preview  serve the built file to sanity-check it
 export default defineConfig({
-  plugins: [viteSingleFile(), classicBlockingScript(), precompress()],
+  plugins: [stripHtmlComments(), viteSingleFile(), classicBlockingScript(), precompress()],
   build: {
     outDir: "dist",
     emptyOutDir: true,

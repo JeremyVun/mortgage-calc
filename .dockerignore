@@ -11,6 +11,9 @@ docker-bake.hcl
 versions.hcl
 *.md
 
+# unit tests — not part of the shippable build
+__tests__
+
 # installed/built locally — regenerated inside the build stage
 node_modules
 dist

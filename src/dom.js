@@ -35,5 +35,8 @@ export function segState(segId, attr, value) {
 }
 
 /* ============================ SVG icons ============================ */
-export function lockClosedSVG() { return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`; }
-export function lockOpenSVG()   { return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-1.5"/></svg>`; }
+// Padlock icon; `closed` swaps only the shackle path tail (full loop vs open hook).
+export function lockSVG(closed) {
+  const d = closed ? "8 0v4" : "7.5-1.5";
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 ${d}"/></svg>`;
+}

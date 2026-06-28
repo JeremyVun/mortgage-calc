@@ -3,6 +3,11 @@ export const nf0 = new Intl.NumberFormat("en-AU", { maximumFractionDigits: 0 });
 export const nf2 = new Intl.NumberFormat("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export function money(x) { if (!isFinite(x)) return "—"; const r = Math.round(x); return (r < 0 ? "-$" : "$") + nf0.format(Math.abs(r)); }
 export function pct(x, d = 1) { if (!isFinite(x)) return "—"; return x.toFixed(d) + "%"; }
+// Money for an editable input: blank when zero/empty, else grouped ("1,200"). Centralizes the
+// "blank when zero" rule the salary/deposit/expense/buffer inputs all share. moneyRaw is the
+// separator-free variant used while a field is focused so caret math stays simple.
+export const moneyInput = (v) => (v ? nf0.format(Math.round(v)) : "");
+export const moneyRaw = (v) => (v ? String(Math.round(v)) : "");
 // Abbreviated money for the dense per-period schedule on narrow screens ($47.7k / $1.20M).
 export function compactK(x) {
   if (!isFinite(x)) return "—";

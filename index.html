@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Servicing — Mortgage Calculator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=Hanken+Grotesk:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <script type="module" src="/src/main.js"></script>
 <noscript><style>.brand,.reset-btn,.panel{opacity:1!important}</style></noscript>
 </head>
@@ -19,15 +19,6 @@
       <span class="mb-label" id="mbLabel">Repayment</span>
       <span class="mb-val" id="mbVal">$0</span>
     </div>
-    <div class="mb-cell mb-extra">
-      <span class="mb-label" id="mbAK">Property</span>
-      <span class="mb-fig" id="mbAV">$0</span>
-    </div>
-    <div class="mb-cell mb-extra">
-      <span class="mb-label" id="mbBK">Loan</span>
-      <span class="mb-fig" id="mbBV">$0</span>
-    </div>
-    <span class="mb-top" id="mbTop" aria-hidden="true">↑ top</span>
   </div>
 </div>
 
@@ -98,7 +89,7 @@
 
         <div class="lock-hint">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-          <div><b>Lock any two</b> of the four figures below. The other two are solved automatically — and update live as you change your rate, buffer, deposit or term.</div>
+          <div><b>Lock any two</b> below.</div>
         </div>
 
         <!-- Property -->
@@ -122,7 +113,7 @@
           <div class="dep-cap" id="depCap">Your funding sources</div>
           <div class="dep-headline"><span id="depHeadline">$200,000</span></div>
           <div class="dep-sources" id="depSources"></div>
-          <button type="button" class="add-source" id="addSource">+ Add funding source</button>
+          <button type="button" class="add-source" id="addSource">+ Add</button>
           <div class="sub" id="sub-deposit"></div>
         </div>
 
@@ -162,22 +153,12 @@
             </span>
           </summary>
           <div class="bp-body">
-            <p class="bp-note">How much a lender is likely to advance — stress-tested at the assessment rate below. A planning estimate, not a bank's exact number.</p>
+            <p class="bp-note">How much a lender is might lend, at the assessment rate below.</p>
 
-            <!-- assessment rate (= your rate + servicing buffer; the buffer lives here, not in your real repayments) -->
+            <!-- assessment rate = your rate + a fixed 3% APRA serviceability buffer (no control) -->
             <div class="bp-assess">
-              <div class="bp-assess-main">
-                <div class="mini-label">Assessment rate</div>
-                <div class="bp-assess-rate"><b id="bpAssessNote">9.00%</b></div>
-              </div>
-              <div class="bp-assess-buf">
-                <div class="mini-label">Servicing buffer</div>
-                <div class="buf-stepper" role="group" aria-label="Servicing buffer">
-                  <button type="button" class="buf-step" id="bufMinus" aria-label="Decrease buffer">&minus;</button>
-                  <span class="buf-val"><span class="buf-plus">+</span><input id="buffer-num" inputmode="decimal" aria-label="Servicing buffer percent" value="3.00" /><span class="buf-pct">%</span></span>
-                  <button type="button" class="buf-step" id="bufPlus" aria-label="Increase buffer">+</button>
-                </div>
-              </div>
+              <div class="mini-label">Assessment rate</div>
+              <div class="bp-assess-rate"><b id="bpAssessNote">9.00%</b><span>your rate + 3% buffer</span></div>
             </div>
 
             <div class="bp-field" style="margin-bottom:14px">
@@ -188,7 +169,6 @@
               </div>
             </div>
 
-            <div class="inc-cap">Gross income per year — what a lender counts toward serviceability.</div>
             <div id="bpIncomes"></div>
 
             <div class="bp-grid">
@@ -222,40 +202,30 @@
 
       <details class="section sec" data-ui="schemes">
         <summary class="sec-sum">
-          <h2><span class="num">04</span> First-home buyer schemes</h2>
+          <h2><span class="num">04</span> First Home Guarantee</h2>
           <span class="sec-right">
             <span class="sec-chip" id="schemesChip"></span>
             <span class="sec-chev" aria-hidden="true">▾</span>
           </span>
         </summary>
         <div class="sec-body">
-          <p class="bp-note">Two federal schemes can <b>waive LMI</b> and let first-home buyers in with a tiny deposit. Tell us about you &amp; the property.</p>
+          <p class="bp-note">The First Home Guarantee lets eligible first-home buyers in with a <b>5% deposit</b> and <b>no LMI</b> — as long as the price is under your region's cap.</p>
 
-          <div class="bp-grid">
-            <div class="bp-field">
-              <div class="mini-label">First home buyer?</div>
-              <div class="seg" id="fhSeg" role="group" aria-label="First home buyer">
-                <button type="button" data-fh="yes" class="on" aria-pressed="true">Yes</button>
-                <button type="button" data-fh="no" aria-pressed="false">No</button>
-              </div>
-            </div>
-            <div class="bp-field">
-              <div class="mini-label">Property type</div>
-              <div class="seg" id="pkSeg" role="group" aria-label="Property type">
-                <button type="button" data-pk="established" class="on" aria-pressed="true">Established</button>
-                <button type="button" data-pk="new" aria-pressed="false">New build</button>
-              </div>
+          <div class="bp-field">
+            <div class="mini-label">First home buyer?</div>
+            <div class="seg" id="fhSeg" role="group" aria-label="First home buyer">
+              <button type="button" data-fh="yes" class="on" aria-pressed="true">Yes</button>
+              <button type="button" data-fh="no" aria-pressed="false">No</button>
             </div>
           </div>
           <div class="bp-field" style="margin-bottom:15px">
-            <label class="mini-label" for="regionSel">Location — sets the price caps</label>
+            <label class="mini-label" for="regionSel">Location — sets the price cap</label>
             <select class="term" id="regionSel"></select>
           </div>
 
           <div class="scheme-card" id="fhbgCard"></div>
-          <div class="scheme-card" id="htbCard"></div>
 
-          <p class="scheme-foot">Eligibility shown is indicative — Housing Australia and your lender make the final call. LMI is an estimate that varies by insurer. Figures use FY2025-26 caps (First Home Guarantee expanded 1&nbsp;Oct&nbsp;2025; Help to Buy live since Dec&nbsp;2025).</p>
+          <p class="scheme-foot">Eligibility is indicative - Housing Australia and your lender make the final call</p>
         </div>
       </details>
 
@@ -281,11 +251,6 @@
             <span class="lvr-badge ok" id="lvrBadge">LVR 0%</span>
           </div>
         </div>
-      </div>
-
-      <div class="warn-banner" id="warnBanner" role="alert" aria-live="assertive">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
-        <div id="warnText"></div>
       </div>
 
       <div class="stat-panel">
@@ -315,7 +280,6 @@
               <button type="button" data-sched="yearly" aria-pressed="false">Yearly</button>
             </div>
           </div>
-          <p class="sched-intro" id="schedIntro"></p>
           <div class="sched-scroll">
             <table class="ledger" id="schedTable">
               <thead><tr><th id="schedColHead">Year</th><th>Interest</th><th>Principal</th><th>Balance</th></tr></thead>
@@ -340,10 +304,6 @@
 
     </div>
   </div>
-
-  <footer class="foot">
-    A precision instrument for property maths · principal &amp; interest, amortised · figures are estimates, not advice
-  </footer>
 </div>
 
 </body>
