@@ -1,0 +1,27 @@
+# nginx server for the static mortgage-calc page. Rendered from this template at
+# container start: ${MORTGAGE_CALC_PORT} is substituted (NGINX_ENVSUBST_FILTER),
+# while $uri stays literal for nginx to evaluate at request time.
+server {
+    listen       ${MORTGAGE_CALC_PORT};
+    listen       [::]:${MORTGAGE_CALC_PORT};
+    server_name  _;
+
+    root   /usr/share/nginx/html;
+    index  index.html;
+
+    gzip            on;
+    gzip_types      text/html text/css application/javascript;
+    gzip_min_length 1024;
+
+    # Single static page — no SPA routing, just serve the file or 404.
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Liveness probe for the container HEALTHCHECK + the compose healthcheck.
+    location = /health {
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 "ok\n";
+    }
+}

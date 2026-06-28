@@ -1,0 +1,17 @@
+# Keep the build context tiny — the image only needs index.html and the nginx
+# template (COPYed explicitly in the Dockerfile). Everything else is dev/ops cruft.
+.git
+.gitignore
+.claude
+.dockerignore
+Dockerfile
+docker-bake.hcl
+versions.hcl
+*.md
+
+# local env
+.env
+*.local
+
+# OS / editor
+.DS_Store
