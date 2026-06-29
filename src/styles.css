@@ -243,19 +243,14 @@
   .first-pay { margin-top: 4px; }
   .fp-note { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; margin-top: 9px; }
 
-  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
-  /* This app is fully JS-driven: the static HTML is just empty placeholders ($0,
-     empty tables). Keep the entrance hidden until JS adds `.ready` after the first
-     render, so the POPULATED ui reveals at once instead of flashing placeholders
-     that then pop to real values. A <noscript> in the page reveals it without JS. */
-  .brand, .reset-btn, .panel { opacity: 0; }
-  .ready .brand, .ready .reset-btn, .ready .panel { opacity: 1; }
-  /* One quick, uniform fade — no slide, no per-column stagger. The whole populated
-     UI resolves at once, which reads as deliberate rather than a showy entrance
-     (the results column used to slide up and arrive last, which felt unpolished). */
-  @media (prefers-reduced-motion: no-preference) {
-    .ready .brand, .ready .reset-btn, .ready .panel { animation: fadein .25s ease both; }
-  }
+  /* No opacity reveal gate, by design. The init script is inlined as a CLASSIC BLOCKING
+     <script> at the end of <body> (see vite.config.js), so it populates the DOM BEFORE the
+     first paint — the very first paint already shows solved values, not placeholders, with
+     no JS needed to reveal anything. An earlier `opacity:0 → .ready` fadein hid ALL content
+     until an animation ran; animating opacity over these large panels forced a full
+     main-thread repaint per frame and collapsed the first paint into a single ~500ms
+     stalled frame (no contentful paint → Lighthouse NO_FCP). Removed: content paints at
+     ~first-paint instead. `.ready` is still set on <body> (harmless) for any future hook. */
 
   /* ---------- Responsive refinements ---------- */
   @media (max-width: 520px) {
